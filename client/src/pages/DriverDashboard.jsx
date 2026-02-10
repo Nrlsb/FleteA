@@ -35,7 +35,7 @@ const DriverDashboard = () => {
             .select('*, profiles:user_id(full_name)')
             .eq('driver_id', user.id)
             .in('status', ['accepted', 'in_progress'])
-            .single();
+            .maybeSingle();
 
         setActiveTrip(data);
     };

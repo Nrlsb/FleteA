@@ -11,7 +11,7 @@ const UserDashboard = () => {
     const [origin, setOrigin] = useState('');
     const [destination, setDestination] = useState('');
     const [distanceKm, setDistanceKm] = useState(''); // Manual input for MVP
-    const [vehicleType, setVehicleType] = useState('moto');
+    const [vehicleType, setVehicleType] = useState('auto');
 
     // UI State
     const [calculatedPrice, setCalculatedPrice] = useState(null);
@@ -165,7 +165,6 @@ const UserDashboard = () => {
                                 onChange={(e) => setVehicleType(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                             >
-                                <option value="moto">Moto</option>
                                 <option value="auto">Auto</option>
                                 <option value="camioneta">Camioneta</option>
                                 <option value="camion">Camión</option>
@@ -249,7 +248,7 @@ const UserDashboard = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

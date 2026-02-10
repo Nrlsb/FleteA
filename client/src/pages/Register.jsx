@@ -11,7 +11,7 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [role, setRole] = useState(initialRole);
-    const [vehicleType, setVehicleType] = useState('moto');
+    const [vehicleType, setVehicleType] = useState('auto');
 
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -24,42 +24,31 @@ const Register = () => {
         setLoading(true);
 
         try {
-            // 1. Sign Up with Supabase Auth
+            // 1. Sign Up (Custom Auth)
             const { data: authData, error: authError } = await register(email, password, {
                 full_name: fullName,
                 role: role,
+                vehicle_type: role === 'driver' ? vehicleType : null
             });
 
             if (authError) throw authError;
             if (!authData.user) throw new Error('No user created');
 
-            // 2. Create Profile in public.profiles
-            // Note: If you have a Trigger to create profile, this step might trigger a duplicate key error or be redundant.
-            // Assuming NO Trigger for MVP (safe approach).
-            const profileData = {
-                id: authData.user.id,
-                email: email,
-                full_name: fullName,
-                role: role,
-                vehicle_type: role === 'driver' ? vehicleType : null,
-                is_available: role === 'driver' ? false : null
-            };
-
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .insert([profileData]);
-
-            if (profileError) {
-                console.error('Profile creation error:', profileError);
-                // If duplicate key (trigger exists), ignore. Else throw.
-                if (!profileError.message.includes('duplicate key')) {
-                    throw profileError;
-                }
-            }
-
             navigate('/dashboard'); // Or /driver based on role, logic in Layout/Protected route will handle redirection
         } catch (err) {
-            setError(err.message);
+            console.error("Registration error:", err);
+            let errorMessage = err.message;
+
+            // Translate common Supabase Auth errors
+            if (errorMessage.includes('email rate limit exceeded')) {
+                errorMessage = 'Has excedido el límite de intentos de registro. Por favor espera unos minutos antes de intentar de nuevo.';
+            } else if (errorMessage.includes('User already registered')) {
+                errorMessage = 'Este correo electrónico ya está registrado. Por favor inicia sesión.';
+            } else if (errorMessage.includes('Password should be at least')) {
+                errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -132,7 +121,6 @@ const Register = () => {
                                 onChange={(e) => setVehicleType(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                             >
-                                <option value="moto">Moto</option>
                                 <option value="auto">Auto</option>
                                 <option value="camioneta">Camioneta</option>
                                 <option value="camion">Camión</option>
@@ -151,8 +139,8 @@ const Register = () => {
                 <div className="mt-6 text-center text-sm text-gray-600">
                     ¿Ya tienes cuenta? <Link to="/login" className="text-blue-600 hover:underline font-medium">Inicia Sesión</Link>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 
