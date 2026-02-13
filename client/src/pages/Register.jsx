@@ -11,7 +11,7 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [role, setRole] = useState(initialRole);
-    const [vehicleType, setVehicleType] = useState('auto');
+    const [vehicleType, setVehicleType] = useState('flete_chico');
 
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -121,9 +121,9 @@ const Register = () => {
                                 onChange={(e) => setVehicleType(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                             >
-                                <option value="auto">Auto</option>
-                                <option value="camioneta">Camioneta</option>
-                                <option value="camion">Camión</option>
+                                <option value="flete_chico">Flete Chico</option>
+                                <option value="flete_mediano">Flete Mediano</option>
+                                <option value="mudancera">Mudancera</option>
                             </select>
                         </div>
                     )}

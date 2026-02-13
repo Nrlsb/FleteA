@@ -11,10 +11,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Pricing configuration
 const BASE_PRICE = 3000;
 const PRICE_PER_KM = {
-    moto: 500,
-    auto: 900,
-    camioneta: 1500,
-    camion: 2500
+    flete_chico: 900,
+    flete_mediano: 1500,
+    mudancera: 2500
 };
 
 // Calculate Price Endpoint
@@ -53,13 +52,7 @@ router.post('/create', async (req, res) => {
                 distance_km,
                 price,
                 status: 'pending',
-                // vehicle_type is not in trips table in my schema! I should add it or just assume driver matching logic handles it.
-                // Wait, the schema I wrote: "vehicle_type vehicle_type, -- Only for drivers". 
-                // It's not in trips table. It should be! A trip needs a requested vehicle type.
-                // I will add it to the insert and hope schema has it, or I need to update schema.
-                // Check schema artifact: "CREATE TABLE trips ... price NUMERIC NOT NULL, status trip_status DEFAULT..."
-                // It does NOT have vehicle_type. I need to update the schema or just store it in metadata? 
-                // It's critical for filtering. I should ADD it to the schema.
+                vehicle_type: vehicle_type
             }
         ])
         .select();

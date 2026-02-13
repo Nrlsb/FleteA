@@ -42,7 +42,7 @@ const UserDashboard = () => {
     const [originCoords, setOriginCoords] = useState(null);
     const [destinationCoords, setDestinationCoords] = useState(null);
     const [distanceKm, setDistanceKm] = useState('');
-    const [vehicleType, setVehicleType] = useState('auto');
+    const [vehicleType, setVehicleType] = useState('flete_chico');
 
     // Autocomplete State
     const [originSuggestions, setOriginSuggestions] = useState([]);
@@ -57,6 +57,8 @@ const UserDashboard = () => {
     const [myTrips, setMyTrips] = useState([]);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [ratingModalOpen, setRatingModalOpen] = useState(false);
+    const [justCompletedTrip, setJustCompletedTrip] = useState(null);
 
     // Fetch trips
     useEffect(() => {
@@ -87,7 +89,15 @@ const UserDashboard = () => {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
-        if (data) setMyTrips(data);
+        if (data) {
+            // Check if any trip just changed to completed to trigger rating
+            const completedTrip = data.find(t => t.status === 'completed' && !myTrips.find(oldT => oldT.id === t.id && oldT.status === 'completed'));
+            if (completedTrip && !justCompletedTrip) {
+                setJustCompletedTrip(completedTrip);
+                setRatingModalOpen(true);
+            }
+            setMyTrips(data);
+        }
     };
 
     // Geolocation Functions
@@ -203,6 +213,27 @@ const UserDashboard = () => {
         }
     };
 
+    const submitRating = async ({ rating, comment }) => {
+        if (!justCompletedTrip || !justCompletedTrip.driver_id) return;
+        try {
+            await fetch(`${import.meta.env.VITE_API_URL}/api/ratings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    trip_id: justCompletedTrip.id,
+                    reviewer_id: user.id,
+                    reviewee_id: justCompletedTrip.driver_id, // User rates driver
+                    rating,
+                    comment
+                })
+            });
+            setJustCompletedTrip(null);
+            setRatingModalOpen(false);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Create Trip Section */}
@@ -292,9 +323,9 @@ const UserDashboard = () => {
                                 onChange={(e) => setVehicleType(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                             >
-                                <option value="auto">Auto</option>
-                                <option value="camioneta">Camioneta</option>
-                                <option value="camion">Camión</option>
+                                <option value="flete_chico">Flete Chico</option>
+                                <option value="flete_mediano">Flete Mediano</option>
+                                <option value="mudancera">Mudancera</option>
                             </select>
                         </div>
 
@@ -415,6 +446,12 @@ const UserDashboard = () => {
                     )}
                 </div>
             </div>
+            <RatingModal
+                isOpen={ratingModalOpen}
+                onClose={() => setRatingModalOpen(false)}
+                onSubmit={submitRating}
+                title="Calificar Chofer"
+            />
         </div>
     );
 };
