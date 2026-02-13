@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle2, QuestionMarkCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleHelp } from 'lucide-react';
 
 const ConfirmationModal = ({
     isOpen,
@@ -16,7 +16,7 @@ const ConfirmationModal = ({
     const icons = {
         warning: <AlertTriangle className="w-12 h-12 text-yellow-500" />,
         success: <CheckCircle2 className="w-12 h-12 text-green-500" />,
-        info: <QuestionMarkCircle className="w-12 h-12 text-blue-500" />
+        info: <CircleHelp className="w-12 h-12 text-blue-500" />
     };
 
     return (
