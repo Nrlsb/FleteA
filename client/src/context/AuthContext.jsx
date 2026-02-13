@@ -9,69 +9,73 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Init session from localStorage (Simulated Session)
-        const storedUser = localStorage.getItem('fletea_user');
-        if (storedUser) {
-            try {
-                const parsedUser = JSON.parse(storedUser);
-                setUser(parsedUser);
-                setProfile(parsedUser); // In this simple model, user has profile data
-            } catch (e) {
-                console.error("Error parsing stored user", e);
-                localStorage.removeItem('fletea_user');
+        // Check active session and subscribe to auth changes
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                setUser(session.user);
+                fetchProfile(session.user.id);
+            } else {
+                setLoading(false);
             }
-        }
-        setLoading(false);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) {
+                setUser(session.user);
+                fetchProfile(session.user.id);
+            } else {
+                setUser(null);
+                setProfile(null);
+                setLoading(false);
+            }
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
+
+    const fetchProfile = async (userId) => {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (data) setProfile(data);
+        setLoading(false);
+    };
 
     const login = async (email, password) => {
         try {
-            // Query public.users table
-            const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('email', email)
-                .eq('password', password) // Plain text pending hash implementation
-                .maybeSingle();
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
 
-            if (error) throw new Error('Credenciales inválidas o usuario no encontrado');
-            if (!data) throw new Error('Usuario no encontrado');
-
-            // Set session
-            setUser(data);
-            setProfile(data);
-            localStorage.setItem('fletea_user', JSON.stringify(data));
-
-            return { data: { user: data }, error: null };
+            if (error) throw error;
+            return { data, error: null };
         } catch (err) {
             return { data: null, error: err };
         }
     };
 
     const logout = async () => {
-        setUser(null);
-        setProfile(null);
-        localStorage.removeItem('fletea_user');
-        // Optional: clear supabase auth too if mixed usage
         return supabase.auth.signOut();
     };
 
     const register = async (email, password, metadata = {}) => {
         try {
-            // Check if user exists
-            const { data: existingUser } = await supabase
-                .from('users')
-                .select('id')
-                .eq('email', email)
-                .maybeSingle();
-
-            if (existingUser) {
-                throw new Error('El usuario ya existe');
-            }
-
-            const newUser = {
+            // 1. Sign Up in Supabase Auth
+            const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
-                password, // Plain text for dev
+                password,
+            });
+
+            if (authError) throw authError;
+
+            // 2. Insert into public.profiles
+            const newProfile = {
+                id: authData.user.id,
+                email,
                 full_name: metadata.full_name,
                 role: metadata.role,
                 vehicle_type: metadata.role === 'driver' ? metadata.vehicle_type : null,
@@ -79,20 +83,16 @@ export const AuthProvider = ({ children }) => {
                 created_at: new Date().toISOString()
             };
 
-            const { data, error } = await supabase
-                .from('users')
-                .insert([newUser])
-                .select()
-                .single();
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .insert([newProfile]);
 
-            if (error) throw error;
+            if (profileError) {
+                console.error("Error creating profile:", profileError);
+                // We don't throw here to allow the user to at least be registered in Auth
+            }
 
-            // Auto-login on register
-            setUser(data);
-            setProfile(data);
-            localStorage.setItem('fletea_user', JSON.stringify(data));
-
-            return { data: { user: data }, error: null };
+            return { data: authData, error: null };
         } catch (err) {
             return { data: null, error: err };
         }
@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={{ user, profile, loading, login, logout, register }}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };

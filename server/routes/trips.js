@@ -5,7 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 // Helper to get supabase client (already initialized in index.js, but need to pass it or re-init)
 // For simplicity in this MVP, we'll re-init or pass it. Let's re-init for now as it's stateless.
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Pricing configuration
