@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { MapPin, Navigation, DollarSign } from 'lucide-react';
 import RatingModal from '../components/RatingModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const DriverDashboard = () => {
     const { user, profile } = useAuth();
@@ -10,6 +11,8 @@ const DriverDashboard = () => {
     const [pendingTrips, setPendingTrips] = useState([]);
     const [activeTrip, setActiveTrip] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [tripToComplete, setTripToComplete] = useState(null);
 
     // Sync available state
     useEffect(() => {
@@ -93,9 +96,14 @@ const DriverDashboard = () => {
     const [justCompletedTrip, setJustCompletedTrip] = useState(null);
 
     const completeTrip = async (tripId) => {
-        if (!confirm("¿Finalizar viaje?")) return;
+        setTripToComplete(tripId);
+        setConfirmModalOpen(true);
+    };
+
+    const handleConfirmComplete = async () => {
+        if (!tripToComplete) return;
         try {
-            await fetch(`${import.meta.env.VITE_API_URL}/api/trips/${tripId}/complete`, {
+            await fetch(`${import.meta.env.VITE_API_URL}/api/trips/${tripToComplete}/complete`, {
                 method: 'POST'
             });
             // Keep the trip in memory effectively or fetch it to rate the user
@@ -233,6 +241,17 @@ const DriverDashboard = () => {
                 onClose={() => setRatingModalOpen(false)}
                 onSubmit={submitRating}
                 title="Calificar Cliente"
+            />
+
+            <ConfirmationModal
+                isOpen={confirmModalOpen}
+                onClose={() => setConfirmModalOpen(false)}
+                onConfirm={handleConfirmComplete}
+                title="¿Finalizar viaje?"
+                message="Asegúrate de haber completado la entrega antes de finalizar."
+                confirmText="Finalizar"
+                cancelText="Volver"
+                type="warning"
             />
         </div>
     );
