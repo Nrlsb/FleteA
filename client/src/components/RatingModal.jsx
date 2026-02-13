@@ -17,7 +17,7 @@ const RatingModal = ({ isOpen, onClose, onSubmit, title = "Calificar Viaje" }) =
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-fade-in">
             <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100">
                 <h3 className="text-xl font-bold text-gray-900 text-center mb-4">{title}</h3>
 
@@ -32,8 +32,8 @@ const RatingModal = ({ isOpen, onClose, onSubmit, title = "Calificar Viaje" }) =
                         >
                             <Star
                                 className={`w-8 h-8 ${star <= (hoveredRating || rating)
-                                        ? 'fill-yellow-400 text-yellow-400'
-                                        : 'text-gray-300'
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300'
                                     }`}
                             />
                         </button>
