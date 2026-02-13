@@ -150,7 +150,7 @@ const UserDashboard = () => {
         setLoadingPrice(true);
         setCalculatedPrice(null);
         try {
-            const response = await fetch('http://localhost:3000/api/trips/calculate-price', {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/calculate-price`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ distance_km: parseFloat(dist), vehicle_type: vehicleType })
@@ -171,7 +171,7 @@ const UserDashboard = () => {
         setSuccess('');
 
         try {
-            const response = await fetch('http://localhost:3000/api/trips/create', {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -61,7 +61,7 @@ const DriverDashboard = () => {
         setIsAvailable(newState);
 
         // Update backend (optional if we just use local toggle for filtering, but good to store)
-        await fetch('http://localhost:3000/api/drivers/status', {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/drivers/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ driver_id: user.id, is_available: newState })
@@ -71,7 +71,7 @@ const DriverDashboard = () => {
     const acceptTrip = async (tripId) => {
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:3000/api/trips/${tripId}/accept`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/${tripId}/accept`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ driver_id: user.id })
@@ -95,7 +95,7 @@ const DriverDashboard = () => {
     const completeTrip = async (tripId) => {
         if (!confirm("¿Finalizar viaje?")) return;
         try {
-            await fetch(`http://localhost:3000/api/trips/${tripId}/complete`, {
+            await fetch(`${import.meta.env.VITE_API_URL}/api/trips/${tripId}/complete`, {
                 method: 'POST'
             });
             // Keep the trip in memory effectively or fetch it to rate the user
@@ -108,7 +108,7 @@ const DriverDashboard = () => {
     const submitRating = async ({ rating, comment }) => {
         if (!justCompletedTrip) return;
         try {
-            await fetch('http://localhost:3000/api/ratings', {
+            await fetch(`${import.meta.env.VITE_API_URL}/api/ratings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
