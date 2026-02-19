@@ -16,9 +16,14 @@ const PRICE_PER_KM = {
     mudancera: 2500
 };
 
+const SERVICE_PRICES = {
+    helper: 2000,   // Peón
+    packing: 1500   // Embalaje
+};
+
 // Calculate Price Endpoint
 router.post('/calculate-price', (req, res) => {
-    const { distance_km, vehicle_type } = req.body;
+    const { distance_km, vehicle_type, services = [] } = req.body;
 
     if (!distance_km || !vehicle_type) {
         return res.status(400).json({ error: 'Missing distance_km or vehicle_type' });
@@ -29,13 +34,33 @@ router.post('/calculate-price', (req, res) => {
         return res.status(400).json({ error: 'Invalid vehicle_type' });
     }
 
-    const price = BASE_PRICE + (distance_km * rate);
+    let price = BASE_PRICE + (distance_km * rate);
+
+    // Add services cost
+    if (Array.isArray(services)) {
+        services.forEach(service => {
+            if (SERVICE_PRICES[service]) {
+                price += SERVICE_PRICES[service];
+            }
+        });
+    }
+
     res.json({ price: Math.round(price) }); // Round to nearest integer
 });
 
 // Create Trip Endpoint
 router.post('/create', async (req, res) => {
-    const { user_id, origin_address, destination_address, distance_km, vehicle_type, price } = req.body;
+    const {
+        user_id,
+        origin_address,
+        destination_address,
+        distance_km,
+        vehicle_type,
+        price,
+        category,
+        photos,
+        services
+    } = req.body;
 
     // Basic validation
     if (!user_id || !origin_address || !destination_address || !distance_km || !price) {
@@ -52,13 +77,15 @@ router.post('/create', async (req, res) => {
                 distance_km,
                 price,
                 status: 'pending',
-                vehicle_type: vehicle_type
+                vehicle_type: vehicle_type,
+                category,
+                photos: photos || [],
+                services: services || []
             }
         ])
         .select();
 
     if (error) {
-        // If error is about missing column, I need to fix schema.
         console.error('Error creating trip:', error);
         return res.status(500).json({ error: error.message });
     }
@@ -71,7 +98,7 @@ router.get('/pending', async (req, res) => {
     // In a real app, filters by location and vehicle_type
     const { data, error } = await supabase
         .from('trips')
-        .select('*')
+        .select('*, profiles:user_id(full_name)')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
@@ -92,7 +119,7 @@ router.post('/:id/accept', async (req, res) => {
 
     const { data, error } = await supabase
         .from('trips')
-        .update({ driver_id, status: 'accepted' })
+        .update({ driver_id, status: 'accepted' }) // 'accepted' means "En camino al origen"
         .eq('id', id)
         .eq('status', 'pending') // Only accept if pending
         .select();
@@ -103,7 +130,36 @@ router.post('/:id/accept', async (req, res) => {
     res.json({ trip: data[0] });
 });
 
-// Complete Trip
+// Update Trip Status (Generic)
+router.post('/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { status, photo_url, location } = req.body;
+
+    // Validate status progression could be here, but trusting client for MVP
+    const updates = { status };
+
+    if (status === 'loading' && photo_url) {
+        updates.proof_loading_photo = photo_url;
+    }
+    if (status === 'completed' && photo_url) {
+        updates.proof_delivery_photo = photo_url;
+    }
+    if (location) {
+        updates.driver_lat = location.lat;
+        updates.driver_lon = location.lon;
+    }
+
+    const { data, error } = await supabase
+        .from('trips')
+        .update(updates)
+        .eq('id', id)
+        .select();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ trip: data[0] });
+});
+
+// Complete Trip (Legacy wrapper or specific logic)
 router.post('/:id/complete', async (req, res) => {
     const { id } = req.params;
 

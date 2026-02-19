@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Truck, DollarSign, Clock, Navigation } from 'lucide-react';
+import { MapPin, Truck, DollarSign, Clock, Navigation, Package, Camera, ArrowRight, X } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import RatingModal from '../components/RatingModal';
+import ServiceCheckbox from '../components/ServiceCheckbox';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -36,13 +37,21 @@ const MapUpdater = ({ coords }) => {
 const UserDashboard = () => {
     const { user, profile } = useAuth();
 
+    // Mode: 'home' | 'requesting'
+    const [viewMode, setViewMode] = useState('home');
+
     // Form State
     const [origin, setOrigin] = useState('');
     const [destination, setDestination] = useState('');
     const [originCoords, setOriginCoords] = useState(null);
     const [destinationCoords, setDestinationCoords] = useState(null);
     const [distanceKm, setDistanceKm] = useState('');
+
+    // New Form State
+    const [category, setCategory] = useState('general');
+    const [photoUrl, setPhotoUrl] = useState('');
     const [vehicleType, setVehicleType] = useState('flete_chico');
+    const [selectedServices, setSelectedServices] = useState([]);
 
     // Autocomplete State
     const [originSuggestions, setOriginSuggestions] = useState([]);
@@ -134,7 +143,7 @@ const UserDashboard = () => {
                 setRoutePoints(coordinates);
 
                 // Trigger price calculation automatically
-                handleCalculatePrice(distance);
+                // handleCalculatePrice(distance); // Don't auto-calc yet, let user finish form
             }
         } catch (err) {
             console.error('Error calculating distance:', err);
@@ -155,15 +164,28 @@ const UserDashboard = () => {
         }
     };
 
-    const handleCalculatePrice = async (dist = distanceKm) => {
-        if (!dist) return;
+    const toggleService = (serviceId) => {
+        setSelectedServices(prev =>
+            prev.includes(serviceId)
+                ? prev.filter(id => id !== serviceId)
+                : [...prev, serviceId]
+        );
+    };
+
+    // Updated Calculate Price to include services
+    const handleCalculatePrice = async () => {
+        if (!distanceKm) return;
         setLoadingPrice(true);
         setCalculatedPrice(null);
         try {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/calculate-price`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ distance_km: parseFloat(dist), vehicle_type: vehicleType })
+                body: JSON.stringify({
+                    distance_km: parseFloat(distanceKm),
+                    vehicle_type: vehicleType,
+                    services: selectedServices
+                })
             });
             const data = await response.json();
             if (data.price) setCalculatedPrice(data.price);
@@ -190,7 +212,10 @@ const UserDashboard = () => {
                     destination_address: destination,
                     distance_km: parseFloat(distanceKm),
                     vehicle_type: vehicleType,
-                    price: calculatedPrice
+                    price: calculatedPrice,
+                    category,
+                    photos: photoUrl ? [photoUrl] : [],
+                    services: selectedServices
                 })
             });
 
@@ -198,13 +223,20 @@ const UserDashboard = () => {
 
             const data = await response.json();
             setSuccess('¡Pedido creado con éxito! Esperando un chofer...');
-            setOrigin('');
-            setDestination('');
-            setOriginCoords(null);
-            setDestinationCoords(null);
-            setRoutePoints([]);
-            setDistanceKm('');
-            setCalculatedPrice(null);
+            setTimeout(() => {
+                setSuccess('');
+                setViewMode('home');
+                // Reset form
+                setOrigin('');
+                setDestination('');
+                setOriginCoords(null);
+                setDestinationCoords(null);
+                setRoutePoints([]);
+                setDistanceKm('');
+                setCalculatedPrice(null);
+                setSelectedServices([]);
+                setPhotoUrl('');
+            }, 3000);
             fetchTrips();
         } catch (err) {
             setError('Error al crear el pedido. Intente nuevamente.');
@@ -222,7 +254,7 @@ const UserDashboard = () => {
                 body: JSON.stringify({
                     trip_id: justCompletedTrip.id,
                     reviewer_id: user.id,
-                    reviewee_id: justCompletedTrip.driver_id, // User rates driver
+                    reviewee_id: justCompletedTrip.driver_id,
                     rating,
                     comment
                 })
@@ -234,218 +266,299 @@ const UserDashboard = () => {
         }
     };
 
-    return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Create Trip Section */}
-            <div className="lg:col-span-1 space-y-6">
-                <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                        <Truck className="w-5 h-5 mr-2 text-blue-600" />
-                        Nuevo Pedido
-                    </h2>
+    // --- RENDER HELPERS ---
 
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Origen</label>
-                            <div className="relative">
-                                <MapPin className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="text"
-                                    value={origin}
-                                    onChange={(e) => {
-                                        setOrigin(e.target.value);
-                                        fetchSuggestions(e.target.value, 'origin');
-                                    }}
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="Dirección de retiro"
-                                />
-                                {originSuggestions.length > 0 && (
-                                    <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
-                                        {originSuggestions.map((s, i) => (
-                                            <li
-                                                key={i}
-                                                onClick={() => handleSelectSuggestion(s, 'origin')}
-                                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700 truncate"
-                                            >
-                                                {s.display_name}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Destino</label>
-                            <div className="relative">
-                                <MapPin className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="text"
-                                    value={destination}
-                                    onChange={(e) => {
-                                        setDestination(e.target.value);
-                                        fetchSuggestions(e.target.value, 'destination');
-                                    }}
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="Dirección de entrega"
-                                />
-                                {destinationSuggestions.length > 0 && (
-                                    <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
-                                        {destinationSuggestions.map((s, i) => (
-                                            <li
-                                                key={i}
-                                                onClick={() => handleSelectSuggestion(s, 'destination')}
-                                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700 truncate"
-                                            >
-                                                {s.display_name}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Distancia Estimada (km)</label>
-                            <input
-                                type="number"
-                                value={distanceKm}
-                                readOnly
-                                className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none cursor-not-allowed"
-                                placeholder="Calculando automáticamente..."
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Vehículo</label>
-                            <select
-                                value={vehicleType}
-                                onChange={(e) => setVehicleType(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                            >
-                                <option value="flete_chico">Flete Chico</option>
-                                <option value="flete_mediano">Flete Mediano</option>
-                                <option value="mudancera">Mudancera</option>
-                            </select>
-                        </div>
-
-                        <button
-                            onClick={handleCalculatePrice}
-                            disabled={!distanceKm || loadingPrice}
-                            className="w-full py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition"
-                        >
-                            {loadingPrice ? 'Calculando...' : 'Cotizar Precio'}
-                        </button>
-
-                        {calculatedPrice && (
-                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 animate-fade-in">
-                                <div className="flex justify-between items-center mb-4">
-                                    <span className="text-gray-600">Precio Estimado:</span>
-                                    <span className="text-2xl font-bold text-blue-700">${calculatedPrice}</span>
-                                </div>
-                                <button
-                                    onClick={handleCreateTrip}
-                                    disabled={creatingTrip}
-                                    className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-md"
-                                >
-                                    {creatingTrip ? 'Procesando...' : 'Confirmar Pedido'}
-                                </button>
-                            </div>
-                        )}
-
-                        {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-                        {success && <p className="text-green-600 text-sm mt-2">{success}</p>}
-                    </div>
-                </div>
+    const renderVehicleOption = (type, label, description, priceFactor) => (
+        <div
+            onClick={() => setVehicleType(type)}
+            className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${vehicleType === type ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}
+        >
+            <div className="flex items-center justify-between mb-2">
+                <Truck className={`w-8 h-8 ${vehicleType === type ? 'text-blue-600' : 'text-gray-400'}`} />
+                {vehicleType === type && <div className="w-4 h-4 rounded-full bg-blue-600" />}
             </div>
+            <h3 className={`font-bold ${vehicleType === type ? 'text-blue-900' : 'text-gray-700'}`}>{label}</h3>
+            <p className="text-xs text-gray-500 mt-1">{description}</p>
+        </div>
+    );
 
-            {/* Map and Trips Section */}
-            <div className="lg:col-span-2 space-y-8">
-                {/* Map Section */}
-                <div className="bg-white p-4 rounded-xl shadow-md border border-gray-100 overflow-hidden">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold text-gray-800 flex items-center">
-                            <Navigation className="w-5 h-5 mr-2 text-blue-600" />
-                            Mapa del Recorrido
-                        </h2>
-                        {distanceKm && <span className="text-blue-600 font-semibold">{distanceKm} km</span>}
-                    </div>
-                    <div className="h-[300px] w-full rounded-lg overflow-hidden border border-gray-200 z-0">
+    return (
+        <div className="relative min-h-[calc(100vh-100px)]">
+            {/* HOME VIEW: MAP + CTA */}
+            {viewMode === 'home' && (
+                <div className="space-y-6">
+                    <div className="relative h-[60vh] w-full rounded-2xl overflow-hidden shadow-xl border border-gray-200">
+                        {/* Map Overlay: CTA */}
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[400] w-11/12 max-w-md">
+                            <button
+                                onClick={() => setViewMode('requesting')}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-4 px-6 rounded-xl shadow-lg transform transition hover:scale-105 flex items-center justify-center gap-2"
+                            >
+                                <Truck className="w-6 h-6" />
+                                Pedir Flete Ahora
+                            </button>
+                        </div>
+
+                        {/* Interactive Map */}
                         <MapContainer
-                            center={[-34.6037, -58.3816]} // Default to BA
+                            center={[-34.6037, -58.3816]}
                             zoom={13}
                             style={{ height: '100%', width: '100%' }}
+                            zoomControl={false}
                         >
                             <TileLayer
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                             />
-                            {originCoords && (
-                                <Marker position={[originCoords.lat, originCoords.lon]}>
-                                    <Popup>Origen: {origin}</Popup>
-                                </Marker>
-                            )}
-                            {destinationCoords && (
-                                <Marker position={[destinationCoords.lat, destinationCoords.lon]}>
-                                    <Popup>Destino: {destination}</Popup>
-                                </Marker>
-                            )}
-                            {routePoints.length > 0 && (
-                                <Polyline pathOptions={{ color: '#2563eb', weight: 4 }} positions={routePoints} />
-                            )}
-                            <MapUpdater coords={{ origin: originCoords, destination: destinationCoords }} />
+                            {/* Mock nearby drivers */}
+                            <Marker position={[-34.61, -58.39]}><Popup>Chofer Juan - Disponible</Popup></Marker>
+                            <Marker position={[-34.59, -58.41]}><Popup>Chofer Luis - Disponible</Popup></Marker>
                         </MapContainer>
                     </div>
-                </div>
 
-                {/* Trips List */}
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">Mis Pedidos</h2>
-                    {myTrips.length === 0 ? (
-                        <div className="bg-white p-8 rounded-xl shadow-sm text-center text-gray-500">
-                            <Truck className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                            <p>No has realizado pedidos aún.</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {myTrips.map((trip) => (
-                                <div key={trip.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wider
-                            ${trip.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : ''}
-                            ${trip.status === 'accepted' ? 'bg-blue-100 text-blue-700' : ''}
-                            ${trip.status === 'completed' ? 'bg-green-100 text-green-700' : ''}
-                            ${trip.status === 'cancelled' ? 'bg-red-100 text-red-700' : ''}
-                          `}>
-                                                {trip.status === 'pending' && 'Pendiente'}
-                                                {trip.status === 'accepted' && 'En Camino'}
-                                                {trip.status === 'completed' && 'Finalizado'}
-                                                {trip.status === 'cancelled' && 'Cancelado'}
+                    {/* Active Trips Quick View */}
+                    {myTrips.length > 0 && (
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-800 mb-4 px-2">Mis Pedidos Recientes</h2>
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {myTrips.slice(0, 3).map(trip => (
+                                    <div key={trip.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                                ${trip.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : ''}
+                                                ${trip.status === 'accepted' ? 'bg-blue-100 text-blue-700' : ''}
+                                                ${trip.status === 'completed' ? 'bg-green-100 text-green-700' : ''}
+                                            `}>
+                                                {trip.status === 'pending' ? 'Pendiente' :
+                                                    trip.status === 'accepted' ? 'En Camino' :
+                                                        trip.status === 'completed' ? 'Finalizado' : trip.status}
                                             </span>
-                                            <span className="text-gray-400 text-sm flex items-center"><Clock className="w-3 h-3 mr-1" /> {new Date(trip.created_at).toLocaleDateString()}</span>
+                                            <span className="text-gray-500 font-bold">${trip.price}</span>
                                         </div>
-                                        <div className="grid gap-1">
-                                            <div className="flex items-start gap-2">
-                                                <div className="mt-1 min-w-[16px]"><div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow-sm ring-1 ring-blue-100"></div></div>
-                                                <p className="text-gray-800 font-medium line-clamp-1">{trip.origin_address}</p>
+                                        <div className="space-y-2 text-sm text-gray-600">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                                {trip.origin_address}
                                             </div>
-                                            <div className="flex items-start gap-2">
-                                                <div className="mt-1 min-w-[16px]"><div className="w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-sm ring-1 ring-red-100"></div></div>
-                                                <p className="text-gray-800 font-medium line-clamp-1">{trip.destination_address}</p>
+                                            <div className="flex items-center gap-2 truncate">
+                                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                                {trip.destination_address}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right sm:border-l sm:pl-6 border-gray-100">
-                                        <p className="text-sm text-gray-500 mb-1">Precio</p>
-                                        <p className="text-xl font-bold text-gray-900">${trip.price}</p>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
-            </div>
+            )}
+
+            {/* REQUESTING VIEW: FORM + MAP SIDEBAR */}
+            {viewMode === 'requesting' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Left Column: Form Wizard */}
+                    <div className="lg:col-span-7 space-y-6">
+                        <div className="flex items-center gap-2 mb-4">
+                            <button onClick={() => setViewMode('home')} className="p-2 hover:bg-gray-100 rounded-full">
+                                <ArrowRight className="w-6 h-6 rotate-180 text-gray-600" />
+                            </button>
+                            <h1 className="text-2xl font-bold text-gray-900">Configura tu Flete</h1>
+                        </div>
+
+                        {/* 1. Route */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                                <Navigation className="w-4 h-4 text-blue-600" /> Ruta
+                            </h3>
+                            <div className="space-y-3">
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-2.5 w-5 h-5 text-green-600" />
+                                    <input
+                                        type="text"
+                                        value={origin}
+                                        onChange={(e) => {
+                                            setOrigin(e.target.value);
+                                            fetchSuggestions(e.target.value, 'origin');
+                                        }}
+                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="¿Dónde retiramos?"
+                                    />
+                                    {originSuggestions.length > 0 && (
+                                        <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
+                                            {originSuggestions.map((s, i) => (
+                                                <li key={i} onClick={() => handleSelectSuggestion(s, 'origin')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm font-medium border-b border-gray-50 last:border-0">{s.display_name}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-2.5 w-5 h-5 text-red-600" />
+                                    <input
+                                        type="text"
+                                        value={destination}
+                                        onChange={(e) => {
+                                            setDestination(e.target.value);
+                                            fetchSuggestions(e.target.value, 'destination');
+                                        }}
+                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="¿Dónde entregamos?"
+                                    />
+                                    {destinationSuggestions.length > 0 && (
+                                        <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
+                                            {destinationSuggestions.map((s, i) => (
+                                                <li key={i} onClick={() => handleSelectSuggestion(s, 'destination')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm font-medium border-b border-gray-50 last:border-0">{s.display_name}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                            {distanceKm && (
+                                <div className="text-sm text-gray-500 font-medium flex items-center gap-1 bg-gray-50 p-2 rounded-lg w-fit">
+                                    <Navigation className="w-3 h-3" /> Distancia: <span className="text-gray-900">{distanceKm} km</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 2. Carga */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                                <Package className="w-4 h-4 text-blue-600" /> Carga
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Categoría</label>
+                                    <select
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value)}
+                                        className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    >
+                                        <option value="general">Cargas Generales</option>
+                                        <option value="furniture">Muebles</option>
+                                        <option value="appliances">Electrodomésticos</option>
+                                        <option value="construction">Materiales de Construcción</option>
+                                        <option value="small_move">Mudanza Pequeña</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Foto (Opcional)</label>
+                                    <div className="relative">
+                                        <Camera className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            value={photoUrl}
+                                            onChange={(e) => setPhotoUrl(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                            placeholder="Pegar URL de la imagen"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Vehículo */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                                <Truck className="w-4 h-4 text-blue-600" /> Vehículo
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {renderVehicleOption('flete_chico', 'Utilitario', 'Kangoo / Partner', '$900/km')}
+                                {renderVehicleOption('flete_mediano', 'Camioneta', 'Hilux / S10', '$1500/km')}
+                                {renderVehicleOption('mudancera', 'Camión', 'Con caja mudancera', '$2500/km')}
+                            </div>
+                        </div>
+
+                        {/* 4. Servicios Adicionales */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-blue-600" /> Servicios Adicionales
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <ServiceCheckbox
+                                    label="Ayuda Peón"
+                                    price="2000"
+                                    checked={selectedServices.includes('helper')}
+                                    onChange={() => toggleService('helper')}
+                                />
+                                <ServiceCheckbox
+                                    label="Embalaje"
+                                    price="1500"
+                                    checked={selectedServices.includes('packing')}
+                                    onChange={() => toggleService('packing')}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Summary & Map sticky */}
+                    <div className="lg:col-span-5 space-y-6">
+                        {/* Map Preview */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-[300px] relative z-0">
+                            <MapContainer
+                                center={[-34.6037, -58.3816]}
+                                zoom={12}
+                                style={{ height: '100%', width: '100%' }}
+                            >
+                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                {originCoords && <Marker position={[originCoords.lat, originCoords.lon]}><Popup>Origen</Popup></Marker>}
+                                {destinationCoords && <Marker position={[destinationCoords.lat, destinationCoords.lon]}><Popup>Destino</Popup></Marker>}
+                                {routePoints.length > 0 && <Polyline pathOptions={{ color: '#2563eb', weight: 4 }} positions={routePoints} />}
+                                <MapUpdater coords={{ origin: originCoords, destination: destinationCoords }} />
+                            </MapContainer>
+                        </div>
+
+                        {/* Quote Summary */}
+                        <div className="bg-blue-900 text-white p-6 rounded-2xl shadow-xl">
+                            <h2 className="text-xl font-bold mb-6">Resumen</h2>
+
+                            <div className="space-y-4 mb-6 text-blue-100 text-sm">
+                                <div className="flex justify-between">
+                                    <span>Distancia</span>
+                                    <span className="font-bold text-white">{distanceKm || '-'} km</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Vehículo</span>
+                                    <span className="font-bold text-white uppercase">{vehicleType.replace('_', ' ')}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Servicios</span>
+                                    <span className="font-bold text-white">{selectedServices.length > 0 ? selectedServices.length : '-'}</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-white/10 p-4 rounded-xl mb-6">
+                                <p className="text-xs text-blue-200 mb-1 uppercase tracking-wider">Total Estimado</p>
+                                <div className="flex items-end gap-2">
+                                    <span className="text-3xl font-bold text-white">
+                                        {calculatedPrice ? `$${calculatedPrice}` : '---'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {!calculatedPrice ? (
+                                <button
+                                    onClick={handleCalculatePrice}
+                                    disabled={!distanceKm || loadingPrice}
+                                    className="w-full py-4 bg-white text-blue-900 font-bold rounded-xl hover:bg-blue-50 transition shadow-lg disabled:opacity-50"
+                                >
+                                    {loadingPrice ? 'Calculando...' : 'Cotizar Precio'}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleCreateTrip}
+                                    disabled={creatingTrip}
+                                    className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl shadow-lg transform transition hover:scale-[1.02]"
+                                >
+                                    {creatingTrip ? 'Procesando...' : 'Confirmar Pedido'}
+                                </button>
+                            )}
+
+                            {error && <p className="text-red-300 text-sm mt-4 text-center">{error}</p>}
+                            {success && <p className="text-green-300 text-sm mt-4 text-center">{success}</p>}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <RatingModal
                 isOpen={ratingModalOpen}
                 onClose={() => setRatingModalOpen(false)}
