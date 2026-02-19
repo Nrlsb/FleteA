@@ -289,7 +289,7 @@ const UserDashboard = () => {
                 <div className="space-y-6">
                     <div className="relative h-[60vh] w-full rounded-2xl overflow-hidden shadow-xl border border-gray-200">
                         {/* Map Overlay: CTA */}
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[400] w-11/12 max-w-md">
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-11/12 max-w-md">
                             <button
                                 onClick={() => setViewMode('requesting')}
                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-4 px-6 rounded-xl shadow-lg transform transition hover:scale-105 flex items-center justify-center gap-2"
