@@ -138,12 +138,22 @@ router.post('/:id/status', async (req, res) => {
     // Validate status progression could be here, but trusting client for MVP
     const updates = { status };
 
+    // When driver starts loading, they might upload a security photo
     if (status === 'loading' && photo_url) {
         updates.proof_loading_photo = photo_url;
     }
-    if (status === 'completed' && photo_url) {
-        updates.proof_delivery_photo = photo_url;
+
+    // When driver finishes loading and starts the trip
+    if (status === 'in_progress') {
+        updates.start_time = new Date().toISOString();
     }
+
+    // When driver completes the trip
+    if (status === 'completed') {
+        updates.proof_delivery_photo = photo_url; // if provided
+        updates.end_time = new Date().toISOString();
+    }
+
     if (location) {
         updates.driver_lat = location.lat;
         updates.driver_lon = location.lon;

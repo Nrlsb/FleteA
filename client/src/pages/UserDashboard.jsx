@@ -50,6 +50,7 @@ const UserDashboard = () => {
     // New Form State
     const [category, setCategory] = useState('general');
     const [photoUrl, setPhotoUrl] = useState('');
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [vehicleType, setVehicleType] = useState('flete_chico');
     const [selectedServices, setSelectedServices] = useState([]);
 
@@ -161,6 +162,35 @@ const UserDashboard = () => {
             setDestinationCoords({ lat: suggestion.lat, lon: suggestion.lon });
             setDestinationSuggestions([]);
             if (originCoords) calculateRouteDistance(originCoords, { lat: suggestion.lat, lon: suggestion.lon });
+        }
+    };
+
+    const handlePhotoUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploadingPhoto(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random()}.${fileExt}`;
+            const filePath = `${user.id}/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('fletea-images')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage
+                .from('fletea-images')
+                .getPublicUrl(filePath);
+
+            setPhotoUrl(data.publicUrl);
+        } catch (error) {
+            console.error('Error uploading photo:', error);
+            alert('Error al subir la imagen');
+        } finally {
+            setUploadingPhoto(false);
         }
     };
 
@@ -444,12 +474,13 @@ const UserDashboard = () => {
                                     <div className="relative">
                                         <Camera className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
                                         <input
-                                            type="text"
-                                            value={photoUrl}
-                                            onChange={(e) => setPhotoUrl(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                            placeholder="Pegar URL de la imagen"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handlePhotoUpload}
+                                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                         />
+                                        {uploadingPhoto && <span className="absolute right-3 top-2.5 text-xs text-blue-600">Subiendo...</span>}
+                                        {photoUrl && !uploadingPhoto && <span className="absolute right-3 top-2.5 text-xs text-green-600">¡Imagen cargada!</span>}
                                     </div>
                                 </div>
                             </div>

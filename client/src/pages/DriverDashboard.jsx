@@ -13,6 +13,8 @@ const DriverDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [tripToComplete, setTripToComplete] = useState(null);
+    const [loadingPhoto, setLoadingPhoto] = useState(false);
+    const [loadingPhotoUrl, setLoadingPhotoUrl] = useState('');
 
     // Sync available state
     useEffect(() => {
@@ -142,6 +144,82 @@ const DriverDashboard = () => {
         }
     };
 
+    const handleUpdateStatus = async (status, photoUrl = null) => {
+        if (!activeTrip) return;
+        setLoading(true);
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/${activeTrip.id}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status, photo_url: photoUrl })
+            });
+            if (res.ok) {
+                fetchActiveTrip();
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLoadPhotoUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setLoadingPhoto(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `load_${activeTrip.id}_${Math.random()}.${fileExt}`;
+            const filePath = `proofs/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('fletea-images')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage
+                .from('fletea-images')
+                .getPublicUrl(filePath);
+
+            setLoadingPhotoUrl(data.publicUrl);
+            // Auto update status to loading with photo? Or let user click button.
+            // Let's just store URL and user confirms.
+        } catch (error) {
+            console.error('Error uploading photo:', error);
+            alert('Error al subir la imagen');
+        } finally {
+            setLoadingPhoto(false);
+        }
+    };
+
+    // Calculate Earnings
+    const totalEarnings = pendingTrips // Reuse pendingTrips variable name logic is bad here, need completed trips.
+    // Actually fetchTrips doesn't fetch completed trips for history for driver in this component yet.
+    // Let's create a quick simple earnings calc from what we can or just use a placeholder logic if data not avail.
+    // Better: Fetch completed trips for earnings.
+
+    const [earnings, setEarnings] = useState(0);
+
+    useEffect(() => {
+        const fetchEarnings = async () => {
+            if (!user) return;
+            const { data } = await supabase
+                .from('trips')
+                .select('price')
+                .eq('driver_id', user.id)
+                .eq('status', 'completed');
+
+            if (data) {
+                const total = data.reduce((sum, t) => sum + t.price, 0);
+                const platformFee = 0.15; // 15% fee
+                setEarnings(total * (1 - platformFee));
+            }
+        };
+        fetchEarnings();
+    }, [user, justCompletedTrip]); // Refresh when a trip is completed
+
     return (
         <div className="max-w-4xl mx-auto">
             {/* Header Status */}
@@ -150,16 +228,22 @@ const DriverDashboard = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Panel de Chofer</h1>
                     <p className="text-gray-500">Vehículo: <span className="uppercase font-semibold">{profile?.vehicle_type}</span></p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <span className={`text-sm font-medium ${isAvailable ? 'text-green-600' : 'text-gray-500'}`}>
-                        {isAvailable ? 'Disponible para viajes' : 'No disponible'}
-                    </span>
-                    <button
-                        onClick={toggleAvailability}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}
-                    >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAvailable ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
+                <div className="flex items-center gap-6">
+                    <div className="text-right">
+                        <p className="text-sm text-gray-500">Ganancias Hoy</p>
+                        <p className="text-xl font-bold text-green-600">${earnings.toFixed(0)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className={`text-sm font-medium ${isAvailable ? 'text-green-600' : 'text-gray-500'}`}>
+                            {isAvailable ? 'Disponible para viajes' : 'No disponible'}
+                        </span>
+                        <button
+                            onClick={toggleAvailability}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAvailable ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -176,6 +260,24 @@ const DriverDashboard = () => {
                     </div>
 
                     <div className="space-y-4 mb-8">
+                        {/* Status Bar */}
+                        <div className="flex justify-between items-center mb-4 bg-blue-700/30 p-3 rounded-lg">
+                            <div className={`flex flex-col items-center ${['accepted', 'loading', 'in_progress'].includes(activeTrip.status) ? 'text-white' : 'text-blue-300'}`}>
+                                <div className="w-3 h-3 rounded-full bg-current mb-1" />
+                                <span className="text-xs">Aceptado</span>
+                            </div>
+                            <div className={`h-[2px] flex-1 mx-2 ${['loading', 'in_progress'].includes(activeTrip.status) ? 'bg-white' : 'bg-blue-300/30'}`} />
+                            <div className={`flex flex-col items-center ${['loading', 'in_progress'].includes(activeTrip.status) ? 'text-white' : 'text-blue-300'}`}>
+                                <div className="w-3 h-3 rounded-full bg-current mb-1" />
+                                <span className="text-xs">Cargando</span>
+                            </div>
+                            <div className={`h-[2px] flex-1 mx-2 ${activeTrip.status === 'in_progress' ? 'bg-white' : 'bg-blue-300/30'}`} />
+                            <div className={`flex flex-col items-center ${activeTrip.status === 'in_progress' ? 'text-white' : 'text-blue-300'}`}>
+                                <div className="w-3 h-3 rounded-full bg-current mb-1" />
+                                <span className="text-xs">En Viaje</span>
+                            </div>
+                        </div>
+
                         <div className="flex gap-3 items-start">
                             <div className="p-2 bg-white/10 rounded-lg"><MapPin className="w-5 h-5" /></div>
                             <div>
@@ -194,12 +296,58 @@ const DriverDashboard = () => {
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => completeTrip(activeTrip.id)}
-                        className="w-full py-3 bg-white text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg"
-                    >
-                        Finalizar Viaje
-                    </button>
+                    {/* ACTION BUTTONS BASED ON STATUS */}
+                    {activeTrip.status === 'accepted' && (
+                        <button
+                            onClick={() => handleUpdateStatus('loading')}
+                            disabled={loading}
+                            className="w-full py-3 bg-white text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg mb-2"
+                        >
+                            Llegué al Origen / Iniciar Carga
+                        </button>
+                    )}
+
+                    {activeTrip.status === 'loading' && (
+                        <div className="bg-white/10 p-4 rounded-xl border border-blue-400 mb-4">
+                            <p className="text-sm font-medium mb-3">Foto de Seguridad (Obligatoria)</p>
+                            {!loadingPhotoUrl ? (
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLoadPhotoUpload}
+                                        className="block w-full text-sm text-blue-100
+                                        file:mr-4 file:py-2 file:px-4
+                                        file:rounded-full file:border-0
+                                        file:text-sm file:font-semibold
+                                        file:bg-blue-50 file:text-blue-700
+                                        hover:file:bg-blue-100"
+                                    />
+                                    {loadingPhoto && <p className="text-xs mt-1">Subiendo...</p>}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <img src={loadingPhotoUrl} alt="Carga" className="h-32 rounded-lg object-cover" />
+                                    <button
+                                        onClick={() => handleUpdateStatus('in_progress', loadingPhotoUrl)}
+                                        disabled={loading}
+                                        className="w-full py-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition shadow-lg"
+                                    >
+                                        Confirmar Carga e Iniciar Viaje
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTrip.status === 'in_progress' && (
+                        <button
+                            onClick={() => completeTrip(activeTrip.id)}
+                            className="w-full py-3 bg-white text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg"
+                        >
+                            Finalizar Viaje
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div>

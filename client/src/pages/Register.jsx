@@ -12,6 +12,8 @@ const Register = () => {
     const [fullName, setFullName] = useState('');
     const [role, setRole] = useState(initialRole);
     const [vehicleType, setVehicleType] = useState('flete_chico');
+    // New Vehicle Dimensions State
+    const [vehicleDims, setVehicleDims] = useState({ length: '', width: '', height: '' });
 
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -28,7 +30,10 @@ const Register = () => {
             const { data: authData, error: authError } = await register(email, password, {
                 full_name: fullName,
                 role: role,
-                vehicle_type: role === 'driver' ? vehicleType : null
+                full_name: fullName,
+                role: role,
+                vehicle_type: role === 'driver' ? vehicleType : null,
+                vehicle_dimensions: role === 'driver' ? vehicleDims : null
             });
 
             if (authError) throw authError;
@@ -125,6 +130,44 @@ const Register = () => {
                                 <option value="flete_mediano">Flete Mediano</option>
                                 <option value="mudancera">Mudancera</option>
                             </select>
+                        </div>
+                    )}
+
+                    {role === 'driver' && (
+                        <div className="grid grid-cols-3 gap-2 animate-fade-in">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Largo (m)</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="2.5"
+                                    value={vehicleDims.length}
+                                    onChange={(e) => setVehicleDims({ ...vehicleDims, length: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Ancho (m)</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="1.8"
+                                    value={vehicleDims.width}
+                                    onChange={(e) => setVehicleDims({ ...vehicleDims, width: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Alto (m)</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="1.5"
+                                    value={vehicleDims.height}
+                                    onChange={(e) => setVehicleDims({ ...vehicleDims, height: e.target.value })}
+                                />
+                            </div>
                         </div>
                     )}
 
