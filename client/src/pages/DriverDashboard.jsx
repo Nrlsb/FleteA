@@ -6,7 +6,7 @@ import RatingModal from '../components/RatingModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 const DriverDashboard = () => {
-    const { user, profile } = useAuth();
+    const { user, profile, updateProfileLocal } = useAuth();
     const [isAvailable, setIsAvailable] = useState(profile?.is_available || false);
     const [pendingTrips, setPendingTrips] = useState([]);
     const [activeTrip, setActiveTrip] = useState(null);
@@ -63,12 +63,21 @@ const DriverDashboard = () => {
         const newState = !isAvailable;
         setIsAvailable(newState);
 
-        // Update backend (optional if we just use local toggle for filtering, but good to store)
-        await fetch(`${import.meta.env.VITE_API_URL}/api/drivers/status`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ driver_id: user.id, is_available: newState })
-        });
+        // Optimistically update local state AND global context
+        setIsAvailable(newState);
+        updateProfileLocal({ is_available: newState });
+
+        // Update backend
+        try {
+            await fetch(`${import.meta.env.VITE_API_URL}/api/drivers/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ driver_id: user.id, is_available: newState })
+            });
+        } catch (error) {
+            console.error("Error updating status:", error);
+            // Revert on error if needed, but for now just log
+        }
     };
 
     const acceptTrip = async (tripId) => {

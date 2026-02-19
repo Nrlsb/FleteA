@@ -98,8 +98,12 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateProfileLocal = (updates) => {
+        setProfile(prev => ({ ...prev, ...updates }));
+    };
+
     return (
-        <AuthContext.Provider value={{ user, profile, loading, login, logout, register }}>
+        <AuthContext.Provider value={{ user, profile, loading, login, logout, register, updateProfileLocal }}>
             {children}
         </AuthContext.Provider>
     );
