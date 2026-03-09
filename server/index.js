@@ -15,6 +15,16 @@ const tripsRouter = require('./routes/trips');
 const driversRouter = require('./routes/drivers');
 const ratingsRouter = require('./routes/ratings');
 
+app.use(cors({
+  origin: [
+    'https://flete-a.vercel.app',
+    /\.vercel\.app$/,
+    'http://localhost:5173',
+  ],
+  credentials: true,
+}));
+app.use(express.json());
+
 app.use('/api/trips', tripsRouter);
 app.use('/api/drivers', driversRouter);
 app.use('/api/ratings', ratingsRouter);
