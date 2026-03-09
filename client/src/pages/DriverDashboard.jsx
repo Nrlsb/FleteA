@@ -73,7 +73,7 @@ const DriverDashboard = () => {
         return () => { supabase.removeChannel(channel); };
     }, [user]);
 
-    // Earnings: only today
+    // Earnings: only today (uses end_time if available, falls back to updated_at)
     useEffect(() => {
         const fetchEarnings = async () => {
             if (!user) return;
@@ -82,10 +82,10 @@ const DriverDashboard = () => {
 
             const { data } = await supabase
                 .from('trips')
-                .select('price')
+                .select('price, end_time, updated_at')
                 .eq('driver_id', user.id)
                 .eq('status', 'completed')
-                .gte('end_time', startOfDay.toISOString());
+                .gte('updated_at', startOfDay.toISOString());
 
             if (data) {
                 const total = data.reduce((sum, t) => sum + t.price, 0);
