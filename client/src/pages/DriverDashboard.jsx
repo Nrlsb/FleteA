@@ -43,17 +43,24 @@ const DriverDashboard = () => {
             query = query.eq('vehicle_type', profile.vehicle_type);
         }
 
-        const { data } = await query;
+        const { data, error } = await query;
+        if (error) {
+            console.error("Error en fetchPendingTrips:", error);
+        }
         if (data) setPendingTrips(data);
     };
 
     const fetchActiveTrip = async () => {
-        const { data: trip } = await supabase
+        const { data: trip, error } = await supabase
             .from('trips')
             .select('*')
             .eq('driver_id', user.id)
             .in('status', ['accepted', 'loading', 'in_progress'])
             .maybeSingle();
+
+        if (error) {
+            console.error("Error en fetchActiveTrip:", error);
+        }
 
         if (trip?.user_id) {
             const { data: prof } = await supabase
