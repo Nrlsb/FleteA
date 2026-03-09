@@ -1,16 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = require('../lib/supabase');
+const requireAuth = require('../middleware/auth');
 
 // Create Rating
-router.post('/', async (req, res) => {
-    const { trip_id, reviewer_id, reviewee_id, rating, comment } = req.body;
+router.post('/', requireAuth, async (req, res) => {
+    const { trip_id, reviewee_id, rating, comment } = req.body;
 
-    if (!trip_id || !reviewer_id || !reviewee_id || !rating) {
+    if (!trip_id || !reviewee_id || !rating) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -18,7 +15,7 @@ router.post('/', async (req, res) => {
         .from('ratings')
         .insert([{
             trip_id,
-            reviewer_id,
+            reviewer_id: req.user.id,  // Always from the authenticated token
             reviewee_id,
             rating,
             comment

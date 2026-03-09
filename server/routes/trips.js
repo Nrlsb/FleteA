@@ -1,12 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
-
-// Helper to get supabase client (already initialized in index.js, but need to pass it or re-init)
-// For simplicity in this MVP, we'll re-init or pass it. Let's re-init for now as it's stateless.
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = require('../lib/supabase');
+const requireAuth = require('../middleware/auth');
 
 // Pricing configuration
 const BASE_PRICE = 3000;
@@ -17,12 +12,19 @@ const PRICE_PER_KM = {
 };
 
 const SERVICE_PRICES = {
-    helper: 2000,   // Peón
-    packing: 1500   // Embalaje
+    helper: 2000,
+    packing: 1500
+};
+
+// Valid status transitions
+const VALID_TRANSITIONS = {
+    accepted: ['loading'],
+    loading: ['in_progress'],
+    in_progress: ['completed'],
 };
 
 // Calculate Price Endpoint
-router.post('/calculate-price', (req, res) => {
+router.post('/calculate-price', requireAuth, (req, res) => {
     const { distance_km, vehicle_type, services = [] } = req.body;
 
     if (!distance_km || !vehicle_type) {
@@ -36,22 +38,18 @@ router.post('/calculate-price', (req, res) => {
 
     let price = BASE_PRICE + (distance_km * rate);
 
-    // Add services cost
     if (Array.isArray(services)) {
         services.forEach(service => {
-            if (SERVICE_PRICES[service]) {
-                price += SERVICE_PRICES[service];
-            }
+            if (SERVICE_PRICES[service]) price += SERVICE_PRICES[service];
         });
     }
 
-    res.json({ price: Math.round(price) }); // Round to nearest integer
+    res.json({ price: Math.round(price) });
 });
 
 // Create Trip Endpoint
-router.post('/create', async (req, res) => {
+router.post('/create', requireAuth, async (req, res) => {
     const {
-        user_id,
         origin_address,
         destination_address,
         distance_km,
@@ -62,27 +60,24 @@ router.post('/create', async (req, res) => {
         services
     } = req.body;
 
-    // Basic validation
-    if (!user_id || !origin_address || !destination_address || !distance_km || !price) {
+    if (!origin_address || !destination_address || !distance_km || !price) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const { data, error } = await supabase
         .from('trips')
-        .insert([
-            {
-                user_id,
-                origin_address,
-                destination_address,
-                distance_km,
-                price,
-                status: 'pending',
-                vehicle_type: vehicle_type,
-                category,
-                photos: photos || [],
-                services: services || []
-            }
-        ])
+        .insert([{
+            user_id: req.user.id,  // Always from the authenticated token
+            origin_address,
+            destination_address,
+            distance_km,
+            price,
+            status: 'pending',
+            vehicle_type,
+            category,
+            photos: photos || [],
+            services: services || []
+        }])
         .select();
 
     if (error) {
@@ -93,35 +88,39 @@ router.post('/create', async (req, res) => {
     res.json({ trip: data[0] });
 });
 
-// Get Pending Trips (for Drivers)
-router.get('/pending', async (req, res) => {
-    // In a real app, filters by location and vehicle_type
-    const { data, error } = await supabase
+// Get Pending Trips (for Drivers) - filtered by vehicle type
+router.get('/pending', requireAuth, async (req, res) => {
+    // Fetch the driver's vehicle_type from their profile
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('vehicle_type')
+        .eq('id', req.user.id)
+        .maybeSingle();
+
+    let query = supabase
         .from('trips')
         .select('*, profiles:user_id(full_name)')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-    if (error) {
-        return res.status(500).json({ error: error.message });
+    if (profile?.vehicle_type) {
+        query = query.eq('vehicle_type', profile.vehicle_type);
     }
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
 
 // Accept Trip
-router.post('/:id/accept', async (req, res) => {
+router.post('/:id/accept', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const { driver_id } = req.body;
-
-    if (!driver_id) {
-        return res.status(400).json({ error: 'Missing driver_id' });
-    }
 
     const { data, error } = await supabase
         .from('trips')
-        .update({ driver_id, status: 'accepted' }) // 'accepted' means "En camino al origen"
+        .update({ driver_id: req.user.id, status: 'accepted' })
         .eq('id', id)
-        .eq('status', 'pending') // Only accept if pending
+        .eq('status', 'pending')
         .select();
 
     if (error) return res.status(500).json({ error: error.message });
@@ -130,33 +129,42 @@ router.post('/:id/accept', async (req, res) => {
     res.json({ trip: data[0] });
 });
 
-// Update Trip Status (Generic)
-router.post('/:id/status', async (req, res) => {
+// Update Trip Status (with progression validation)
+router.post('/:id/status', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const { status, photo_url, location } = req.body;
+    const { status, photo_url } = req.body;
 
-    // Validate status progression could be here, but trusting client for MVP
+    // Fetch current trip to validate
+    const { data: trip, error: fetchError } = await supabase
+        .from('trips')
+        .select('status, driver_id')
+        .eq('id', id)
+        .single();
+
+    if (fetchError || !trip) return res.status(404).json({ error: 'Trip not found' });
+
+    // Only the assigned driver can update status
+    if (trip.driver_id !== req.user.id) {
+        return res.status(403).json({ error: 'Not authorized to update this trip' });
+    }
+
+    // Validate status transition
+    const allowed = VALID_TRANSITIONS[trip.status] || [];
+    if (!allowed.includes(status)) {
+        return res.status(400).json({ error: `Invalid transition: ${trip.status} → ${status}` });
+    }
+
     const updates = { status };
 
-    // When driver starts loading, they might upload a security photo
     if (status === 'loading' && photo_url) {
         updates.proof_loading_photo = photo_url;
     }
-
-    // When driver finishes loading and starts the trip
     if (status === 'in_progress') {
         updates.start_time = new Date().toISOString();
     }
-
-    // When driver completes the trip
     if (status === 'completed') {
-        updates.proof_delivery_photo = photo_url; // if provided
+        updates.proof_delivery_photo = photo_url || null;
         updates.end_time = new Date().toISOString();
-    }
-
-    if (location) {
-        updates.driver_lat = location.lat;
-        updates.driver_lon = location.lon;
     }
 
     const { data, error } = await supabase
@@ -169,18 +177,46 @@ router.post('/:id/status', async (req, res) => {
     res.json({ trip: data[0] });
 });
 
-// Complete Trip (Legacy wrapper or specific logic)
-router.post('/:id/complete', async (req, res) => {
+// Cancel a pending trip (only owner)
+router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
 
     const { data, error } = await supabase
         .from('trips')
-        .update({ status: 'completed' })
+        .update({ status: 'cancelled' })
         .eq('id', id)
+        .eq('user_id', req.user.id)
+        .eq('status', 'pending')
         .select();
 
     if (error) return res.status(500).json({ error: error.message });
+    if (!data || data.length === 0) {
+        return res.status(400).json({ error: 'Trip not found or cannot be cancelled' });
+    }
+
     res.json({ trip: data[0] });
+});
+
+// Update Driver Location during active trip
+router.post('/:id/location', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { lat, lon } = req.body;
+
+    if (lat === undefined || lon === undefined) {
+        return res.status(400).json({ error: 'Missing lat or lon' });
+    }
+
+    const { data, error } = await supabase
+        .from('trips')
+        .update({ driver_lat: lat, driver_lon: lon })
+        .eq('id', id)
+        .eq('driver_id', req.user.id)
+        .in('status', ['accepted', 'loading', 'in_progress'])
+        .select();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data || data.length === 0) return res.status(400).json({ error: 'Trip not found or not active' });
+    res.json({ ok: true });
 });
 
 module.exports = router;

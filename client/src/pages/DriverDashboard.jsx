@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
+import { apiPost } from '../services/api';
 import { MapPin, Navigation, DollarSign } from 'lucide-react';
 import RatingModal from '../components/RatingModal';
 import ConfirmationModal from '../components/ConfirmationModal';
+import useDriverTracking from '../hooks/useDriverTracking';
 
 const DriverDashboard = () => {
     const { user, profile, updateProfileLocal } = useAuth();
@@ -13,8 +15,15 @@ const DriverDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [tripToComplete, setTripToComplete] = useState(null);
-    const [loadingPhoto, setLoadingPhoto] = useState(false);
     const [loadingPhotoUrl, setLoadingPhotoUrl] = useState('');
+    const [deliveryPhotoUrl, setDeliveryPhotoUrl] = useState('');
+    const [uploadingPhoto, setUploadingPhoto] = useState({ loading: false, delivery: false });
+    const [ratingModalOpen, setRatingModalOpen] = useState(false);
+    const [justCompletedTrip, setJustCompletedTrip] = useState(null);
+    const [earnings, setEarnings] = useState(0);
+
+    // GPS tracking hook
+    useDriverTracking(activeTrip);
 
     // Sync available state
     useEffect(() => {
@@ -23,14 +32,18 @@ const DriverDashboard = () => {
 
     // Fetch trips logic
     const fetchPendingTrips = async () => {
-        // Should filter by vehicle type compatibility ideally, but MVP all pending
-        const { data } = await supabase
+        let query = supabase
             .from('trips')
-            .select('*, profiles:user_id(full_name)') // Join to get user name
+            .select('*, profiles:user_id(full_name)')
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        // Client side filter by vehicle type for now if needed, or rely on backend
+        // Only show trips matching the driver's vehicle type
+        if (profile?.vehicle_type) {
+            query = query.eq('vehicle_type', profile.vehicle_type);
+        }
+
+        const { data } = await query;
         if (data) setPendingTrips(data);
     };
 
@@ -39,7 +52,7 @@ const DriverDashboard = () => {
             .from('trips')
             .select('*, profiles:user_id(full_name)')
             .eq('driver_id', user.id)
-            .in('status', ['accepted', 'in_progress'])
+            .in('status', ['accepted', 'loading', 'in_progress'])
             .maybeSingle();
 
         setActiveTrip(data);
@@ -49,7 +62,6 @@ const DriverDashboard = () => {
         fetchPendingTrips();
         fetchActiveTrip();
 
-        // Realtime subscription
         const channel = supabase
             .channel('driver_trips')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => {
@@ -61,35 +73,53 @@ const DriverDashboard = () => {
         return () => { supabase.removeChannel(channel); };
     }, [user]);
 
+    // Earnings: only today
+    useEffect(() => {
+        const fetchEarnings = async () => {
+            if (!user) return;
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const { data } = await supabase
+                .from('trips')
+                .select('price')
+                .eq('driver_id', user.id)
+                .eq('status', 'completed')
+                .gte('end_time', startOfDay.toISOString());
+
+            if (data) {
+                const total = data.reduce((sum, t) => sum + t.price, 0);
+                setEarnings(total * 0.85);
+            }
+        };
+        fetchEarnings();
+    }, [user, justCompletedTrip]);
+
     const toggleAvailability = async () => {
         const newState = !isAvailable;
         setIsAvailable(newState);
-
-        // Optimistically update local state AND global context
-        setIsAvailable(newState);
         updateProfileLocal({ is_available: newState });
 
-        // Update backend
+        const getLocation = () => new Promise((resolve) => {
+            if (!newState || !navigator.geolocation) return resolve(null);
+            navigator.geolocation.getCurrentPosition(
+                (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+                () => resolve(null)
+            );
+        });
+
+        const location = await getLocation();
         try {
-            await fetch(`${import.meta.env.VITE_API_URL}/api/drivers/status`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ driver_id: user.id, is_available: newState })
-            });
+            await apiPost('/api/drivers/status', { is_available: newState, location });
         } catch (error) {
-            console.error("Error updating status:", error);
-            // Revert on error if needed, but for now just log
+            console.error('Error updating status:', error);
         }
     };
 
     const acceptTrip = async (tripId) => {
         setLoading(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/${tripId}/accept`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ driver_id: user.id })
-            });
+            const res = await apiPost(`/api/trips/${tripId}/accept`, {});
             if (res.ok) {
                 fetchActiveTrip();
                 fetchPendingTrips();
@@ -101,12 +131,7 @@ const DriverDashboard = () => {
         }
     };
 
-
-
-    const [ratingModalOpen, setRatingModalOpen] = useState(false);
-    const [justCompletedTrip, setJustCompletedTrip] = useState(null);
-
-    const completeTrip = async (tripId) => {
+    const completeTrip = (tripId) => {
         setTripToComplete(tripId);
         setConfirmModalOpen(true);
     };
@@ -114,12 +139,13 @@ const DriverDashboard = () => {
     const handleConfirmComplete = async () => {
         if (!tripToComplete) return;
         try {
-            await fetch(`${import.meta.env.VITE_API_URL}/api/trips/${tripToComplete}/complete`, {
-                method: 'POST'
+            await apiPost(`/api/trips/${tripToComplete}/status`, {
+                status: 'completed',
+                photo_url: deliveryPhotoUrl
             });
-            // Keep the trip in memory effectively or fetch it to rate the user
             setJustCompletedTrip(activeTrip);
             setActiveTrip(null);
+            setDeliveryPhotoUrl('');
             setRatingModalOpen(true);
         } catch (e) { console.error(e); }
     };
@@ -127,16 +153,11 @@ const DriverDashboard = () => {
     const submitRating = async ({ rating, comment }) => {
         if (!justCompletedTrip) return;
         try {
-            await fetch(`${import.meta.env.VITE_API_URL}/api/ratings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    trip_id: justCompletedTrip.id,
-                    reviewer_id: user.id,
-                    reviewee_id: justCompletedTrip.user_id, // Driver rates user
-                    rating,
-                    comment
-                })
+            await apiPost('/api/ratings', {
+                trip_id: justCompletedTrip.id,
+                reviewee_id: justCompletedTrip.user_id,
+                rating,
+                comment
             });
             setJustCompletedTrip(null);
         } catch (e) {
@@ -148,14 +169,8 @@ const DriverDashboard = () => {
         if (!activeTrip) return;
         setLoading(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/${activeTrip.id}/status`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status, photo_url: photoUrl })
-            });
-            if (res.ok) {
-                fetchActiveTrip();
-            }
+            const res = await apiPost(`/api/trips/${activeTrip.id}/status`, { status, photo_url: photoUrl });
+            if (res.ok) fetchActiveTrip();
         } catch (e) {
             console.error(e);
         } finally {
@@ -163,14 +178,14 @@ const DriverDashboard = () => {
         }
     };
 
-    const handleLoadPhotoUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    // Unified photo upload for both loading and delivery proofs
+    const uploadProofPhoto = async (file, type) => {
+        if (!file || !activeTrip) return;
 
-        setLoadingPhoto(true);
+        setUploadingPhoto(prev => ({ ...prev, [type]: true }));
         try {
             const fileExt = file.name.split('.').pop();
-            const fileName = `load_${activeTrip.id}_${Math.random()}.${fileExt}`;
+            const fileName = `${type}_${activeTrip.id}_${crypto.randomUUID()}.${fileExt}`;
             const filePath = `proofs/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
@@ -179,46 +194,31 @@ const DriverDashboard = () => {
 
             if (uploadError) throw uploadError;
 
-            const { data } = supabase.storage
-                .from('fletea-images')
-                .getPublicUrl(filePath);
-
-            setLoadingPhotoUrl(data.publicUrl);
-            // Auto update status to loading with photo? Or let user click button.
-            // Let's just store URL and user confirms.
+            const { data } = supabase.storage.from('fletea-images').getPublicUrl(filePath);
+            return data.publicUrl;
         } catch (error) {
             console.error('Error uploading photo:', error);
             alert('Error al subir la imagen');
+            return null;
         } finally {
-            setLoadingPhoto(false);
+            setUploadingPhoto(prev => ({ ...prev, [type]: false }));
         }
     };
 
-    // Calculate Earnings
-    const totalEarnings = pendingTrips // Reuse pendingTrips variable name logic is bad here, need completed trips.
-    // Actually fetchTrips doesn't fetch completed trips for history for driver in this component yet.
-    // Let's create a quick simple earnings calc from what we can or just use a placeholder logic if data not avail.
-    // Better: Fetch completed trips for earnings.
+    const handleLoadPhotoUpload = async (e) => {
+        const url = await uploadProofPhoto(e.target.files[0], 'loading');
+        if (url) setLoadingPhotoUrl(url);
+    };
 
-    const [earnings, setEarnings] = useState(0);
+    const handleDeliveryPhotoUpload = async (e) => {
+        const url = await uploadProofPhoto(e.target.files[0], 'delivery');
+        if (url) setDeliveryPhotoUrl(url);
+    };
 
-    useEffect(() => {
-        const fetchEarnings = async () => {
-            if (!user) return;
-            const { data } = await supabase
-                .from('trips')
-                .select('price')
-                .eq('driver_id', user.id)
-                .eq('status', 'completed');
-
-            if (data) {
-                const total = data.reduce((sum, t) => sum + t.price, 0);
-                const platformFee = 0.15; // 15% fee
-                setEarnings(total * (1 - platformFee));
-            }
-        };
-        fetchEarnings();
-    }, [user, justCompletedTrip]); // Refresh when a trip is completed
+    const dims = profile?.vehicle_dimensions;
+    const dimsText = dims && (dims.length || dims.width || dims.height)
+        ? `${dims.length || '-'}m × ${dims.width || '-'}m × ${dims.height || '-'}m`
+        : null;
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -227,6 +227,13 @@ const DriverDashboard = () => {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Panel de Chofer</h1>
                     <p className="text-gray-500">Vehículo: <span className="uppercase font-semibold">{profile?.vehicle_type}</span></p>
+                    {(dimsText || profile?.max_cargo_weight) && (
+                        <p className="text-gray-400 text-sm">
+                            {dimsText && <span>{dimsText}</span>}
+                            {dimsText && profile?.max_cargo_weight && <span> · </span>}
+                            {profile?.max_cargo_weight && <span>Máx {profile.max_cargo_weight} kg</span>}
+                        </p>
+                    )}
                 </div>
                 <div className="flex items-center gap-6">
                     <div className="text-right">
@@ -251,7 +258,7 @@ const DriverDashboard = () => {
                 <div className="bg-blue-600 rounded-xl shadow-lg p-6 text-white mb-8 animate-fade-in">
                     <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h2 className="text-xl font-bold mb-1">Viaje En Curso via Google Maps</h2>
+                            <h2 className="text-xl font-bold mb-1">Viaje En Curso</h2>
                             <p className="text-blue-100">Cliente: {activeTrip.profiles?.full_name}</p>
                         </div>
                         <div className="bg-white/20 px-3 py-1 rounded-lg backdrop-blur-sm">
@@ -283,7 +290,10 @@ const DriverDashboard = () => {
                             <div>
                                 <p className="text-xs text-blue-200 uppercase tracking-wider">Retirar en</p>
                                 <p className="font-medium text-lg">{activeTrip.origin_address}</p>
-                                <a target="_blank" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeTrip.origin_address)}`} className="text-xs text-blue-200 hover:text-white underline mt-1 block">Ver en Mapa</a>
+                                <div className="flex gap-3 mt-1">
+                                    <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeTrip.origin_address)}`} className="text-xs text-blue-200 hover:text-white underline">Google Maps</a>
+                                    <a target="_blank" rel="noreferrer" href={`https://waze.com/ul?q=${encodeURIComponent(activeTrip.origin_address)}&navigate=yes`} className="text-xs text-blue-200 hover:text-white underline">Waze</a>
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-3 items-start">
@@ -291,7 +301,10 @@ const DriverDashboard = () => {
                             <div>
                                 <p className="text-xs text-blue-200 uppercase tracking-wider">Entregar en</p>
                                 <p className="font-medium text-lg">{activeTrip.destination_address}</p>
-                                <a target="_blank" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeTrip.destination_address)}`} className="text-xs text-blue-200 hover:text-white underline mt-1 block">Ver en Mapa</a>
+                                <div className="flex gap-3 mt-1">
+                                    <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeTrip.destination_address)}`} className="text-xs text-blue-200 hover:text-white underline">Google Maps</a>
+                                    <a target="_blank" rel="noreferrer" href={`https://waze.com/ul?q=${encodeURIComponent(activeTrip.destination_address)}&navigate=yes`} className="text-xs text-blue-200 hover:text-white underline">Waze</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -316,14 +329,9 @@ const DriverDashboard = () => {
                                         type="file"
                                         accept="image/*"
                                         onChange={handleLoadPhotoUpload}
-                                        className="block w-full text-sm text-blue-100
-                                        file:mr-4 file:py-2 file:px-4
-                                        file:rounded-full file:border-0
-                                        file:text-sm file:font-semibold
-                                        file:bg-blue-50 file:text-blue-700
-                                        hover:file:bg-blue-100"
+                                        className="block w-full text-sm text-blue-100 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                     />
-                                    {loadingPhoto && <p className="text-xs mt-1">Subiendo...</p>}
+                                    {uploadingPhoto.loading && <p className="text-xs mt-1">Subiendo...</p>}
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -341,12 +349,31 @@ const DriverDashboard = () => {
                     )}
 
                     {activeTrip.status === 'in_progress' && (
-                        <button
-                            onClick={() => completeTrip(activeTrip.id)}
-                            className="w-full py-3 bg-white text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg"
-                        >
-                            Finalizar Viaje
-                        </button>
+                        <div className="bg-white/10 p-4 rounded-xl border border-blue-400 mb-4">
+                            <p className="text-sm font-medium mb-3">Foto de Entrega (Obligatoria)</p>
+                            {!deliveryPhotoUrl ? (
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleDeliveryPhotoUpload}
+                                        className="block w-full text-sm text-blue-100 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                    />
+                                    {uploadingPhoto.delivery && <p className="text-xs mt-1">Subiendo...</p>}
+                                    {!uploadingPhoto.delivery && <p className="text-xs mt-2 text-blue-200">Sube la foto para habilitar el botón de entrega</p>}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <img src={deliveryPhotoUrl} alt="Entrega" className="h-32 rounded-lg object-cover" />
+                                    <button
+                                        onClick={() => completeTrip(activeTrip.id)}
+                                        className="w-full py-3 bg-white text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg"
+                                    >
+                                        Confirmar Entrega
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
             ) : (
@@ -370,21 +397,21 @@ const DriverDashboard = () => {
 
                                     <div className="space-y-3 mb-6">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                            <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></div>
                                             <span className="text-gray-600 truncate">{trip.origin_address}</span>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                            <div className="w-2 h-2 rounded-full bg-red-500 shrink-0"></div>
                                             <span className="text-gray-600 truncate">{trip.destination_address}</span>
                                         </div>
                                     </div>
 
                                     <button
                                         onClick={() => acceptTrip(trip.id)}
-                                        disabled={!isAvailable}
+                                        disabled={!isAvailable || loading}
                                         className="w-full py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-black transition disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {isAvailable ? 'Aceptar Viaje' : 'Disponible para aceptar'}
+                                        {isAvailable ? 'Aceptar Viaje' : 'Ponete disponible para aceptar'}
                                     </button>
                                 </div>
                             ))}
@@ -404,9 +431,9 @@ const DriverDashboard = () => {
                 isOpen={confirmModalOpen}
                 onClose={() => setConfirmModalOpen(false)}
                 onConfirm={handleConfirmComplete}
-                title="¿Finalizar viaje?"
+                title="¿Confirmar entrega?"
                 message="Asegúrate de haber completado la entrega antes de finalizar."
-                confirmText="Finalizar"
+                confirmText="Confirmar"
                 cancelText="Volver"
                 type="warning"
             />

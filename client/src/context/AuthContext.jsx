@@ -79,6 +79,8 @@ export const AuthProvider = ({ children }) => {
                 full_name: metadata.full_name,
                 role: metadata.role,
                 vehicle_type: metadata.role === 'driver' ? metadata.vehicle_type : null,
+                vehicle_dimensions: metadata.role === 'driver' ? metadata.vehicle_dimensions : null,
+                max_cargo_weight: metadata.role === 'driver' ? metadata.max_cargo_weight : null,
                 is_available: metadata.role === 'driver' ? false : null,
                 created_at: new Date().toISOString()
             };

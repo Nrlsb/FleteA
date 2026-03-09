@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Truck, DollarSign, Clock, Navigation, Package, Camera, ArrowRight, X } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { apiGet, apiPost, apiDelete } from '../services/api';
 import RatingModal from '../components/RatingModal';
 import ServiceCheckbox from '../components/ServiceCheckbox';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
+import useDebounce from '../hooks/useDebounce';
 
 // Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -35,7 +37,7 @@ const MapUpdater = ({ coords }) => {
 };
 
 const UserDashboard = () => {
-    const { user, profile } = useAuth();
+    const { user } = useAuth();
 
     // Mode: 'home' | 'requesting'
     const [viewMode, setViewMode] = useState('home');
@@ -54,11 +56,17 @@ const UserDashboard = () => {
     const [vehicleType, setVehicleType] = useState('flete_chico');
     const [selectedServices, setSelectedServices] = useState([]);
 
-    // Autocomplete State
+    // Autocomplete State (debounced to avoid hammering Nominatim)
     const [originSuggestions, setOriginSuggestions] = useState([]);
     const [destinationSuggestions, setDestinationSuggestions] = useState([]);
     const [loadingSuggestions, setLoadingSuggestions] = useState({ origin: false, destination: false });
     const [routePoints, setRoutePoints] = useState([]);
+
+    const debouncedOrigin = useDebounce(origin, 300);
+    const debouncedDestination = useDebounce(destination, 300);
+
+    // Map center — defaults to Buenos Aires, updates to user's location
+    const [mapCenter, setMapCenter] = useState([-34.6037, -58.3816]);
 
     // UI State
     const [calculatedPrice, setCalculatedPrice] = useState(null);
@@ -69,12 +77,22 @@ const UserDashboard = () => {
     const [success, setSuccess] = useState('');
     const [ratingModalOpen, setRatingModalOpen] = useState(false);
     const [justCompletedTrip, setJustCompletedTrip] = useState(null);
+    const [availableDrivers, setAvailableDrivers] = useState([]);
+
+    // Detect user location for map center
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => setMapCenter([pos.coords.latitude, pos.coords.longitude]),
+                () => {} // fallback to default Buenos Aires
+            );
+        }
+    }, []);
 
     // Fetch trips
     useEffect(() => {
         if (user) fetchTrips();
 
-        // Realtime subscription for my trips updates
         const channel = supabase
             .channel('my_trips')
             .on('postgres_changes', {
@@ -87,20 +105,17 @@ const UserDashboard = () => {
             })
             .subscribe();
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, [user]);
 
     const fetchTrips = async () => {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('trips')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
         if (data) {
-            // Check if any trip just changed to completed to trigger rating
             const completedTrip = data.find(t => t.status === 'completed' && !myTrips.find(oldT => oldT.id === t.id && oldT.status === 'completed'));
             if (completedTrip && !justCompletedTrip) {
                 setJustCompletedTrip(completedTrip);
@@ -110,7 +125,30 @@ const UserDashboard = () => {
         }
     };
 
-    // Geolocation Functions
+    // Fetch available drivers
+    useEffect(() => {
+        const fetchDrivers = async () => {
+            try {
+                const res = await apiGet('/api/drivers/available');
+                if (res.ok) setAvailableDrivers(await res.json());
+            } catch (err) {
+                console.error('Error fetching drivers:', err);
+            }
+        };
+        fetchDrivers();
+        const interval = setInterval(fetchDrivers, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Autocomplete with debounce
+    useEffect(() => {
+        fetchSuggestions(debouncedOrigin, 'origin');
+    }, [debouncedOrigin]);
+
+    useEffect(() => {
+        fetchSuggestions(debouncedDestination, 'destination');
+    }, [debouncedDestination]);
+
     const fetchSuggestions = async (query, type) => {
         if (query.length < 3) {
             type === 'origin' ? setOriginSuggestions([]) : setDestinationSuggestions([]);
@@ -119,7 +157,6 @@ const UserDashboard = () => {
 
         setLoadingSuggestions(prev => ({ ...prev, [type]: true }));
         try {
-            // Added featuretype=settlement,street to improve relevance and limit search area
             const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ar&limit=5&addressdetails=1`);
             const data = await response.json();
             type === 'origin' ? setOriginSuggestions(data) : setDestinationSuggestions(data);
@@ -138,13 +175,8 @@ const UserDashboard = () => {
             if (data.routes && data.routes[0]) {
                 const distance = (data.routes[0].distance / 1000).toFixed(1);
                 setDistanceKm(distance);
-
-                // Set route points for the map
                 const coordinates = data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
                 setRoutePoints(coordinates);
-
-                // Trigger price calculation automatically
-                // handleCalculatePrice(distance); // Don't auto-calc yet, let user finish form
             }
         } catch (err) {
             console.error('Error calculating distance:', err);
@@ -172,7 +204,7 @@ const UserDashboard = () => {
         setUploadingPhoto(true);
         try {
             const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
+            const fileName = `${crypto.randomUUID()}.${fileExt}`;
             const filePath = `${user.id}/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
@@ -181,10 +213,7 @@ const UserDashboard = () => {
 
             if (uploadError) throw uploadError;
 
-            const { data } = supabase.storage
-                .from('fletea-images')
-                .getPublicUrl(filePath);
-
+            const { data } = supabase.storage.from('fletea-images').getPublicUrl(filePath);
             setPhotoUrl(data.publicUrl);
         } catch (error) {
             console.error('Error uploading photo:', error);
@@ -202,20 +231,15 @@ const UserDashboard = () => {
         );
     };
 
-    // Updated Calculate Price to include services
     const handleCalculatePrice = async () => {
         if (!distanceKm) return;
         setLoadingPrice(true);
         setCalculatedPrice(null);
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/calculate-price`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    distance_km: parseFloat(distanceKm),
-                    vehicle_type: vehicleType,
-                    services: selectedServices
-                })
+            const response = await apiPost('/api/trips/calculate-price', {
+                distance_km: parseFloat(distanceKm),
+                vehicle_type: vehicleType,
+                services: selectedServices
             });
             const data = await response.json();
             if (data.price) setCalculatedPrice(data.price);
@@ -233,30 +257,23 @@ const UserDashboard = () => {
         setSuccess('');
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/trips/create`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: user.id,
-                    origin_address: origin,
-                    destination_address: destination,
-                    distance_km: parseFloat(distanceKm),
-                    vehicle_type: vehicleType,
-                    price: calculatedPrice,
-                    category,
-                    photos: photoUrl ? [photoUrl] : [],
-                    services: selectedServices
-                })
+            const response = await apiPost('/api/trips/create', {
+                origin_address: origin,
+                destination_address: destination,
+                distance_km: parseFloat(distanceKm),
+                vehicle_type: vehicleType,
+                price: calculatedPrice,
+                category,
+                photos: photoUrl ? [photoUrl] : [],
+                services: selectedServices
             });
 
             if (!response.ok) throw new Error('Failed to create trip');
 
-            const data = await response.json();
             setSuccess('¡Pedido creado con éxito! Esperando un chofer...');
             setTimeout(() => {
                 setSuccess('');
                 setViewMode('home');
-                // Reset form
                 setOrigin('');
                 setDestination('');
                 setOriginCoords(null);
@@ -275,19 +292,23 @@ const UserDashboard = () => {
         }
     };
 
+    const handleCancelTrip = async (tripId) => {
+        try {
+            const res = await apiDelete(`/api/trips/${tripId}`);
+            if (res.ok) fetchTrips();
+        } catch (err) {
+            console.error('Error cancelling trip:', err);
+        }
+    };
+
     const submitRating = async ({ rating, comment }) => {
         if (!justCompletedTrip || !justCompletedTrip.driver_id) return;
         try {
-            await fetch(`${import.meta.env.VITE_API_URL}/api/ratings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    trip_id: justCompletedTrip.id,
-                    reviewer_id: user.id,
-                    reviewee_id: justCompletedTrip.driver_id,
-                    rating,
-                    comment
-                })
+            await apiPost('/api/ratings', {
+                trip_id: justCompletedTrip.id,
+                reviewee_id: justCompletedTrip.driver_id,
+                rating,
+                comment
             });
             setJustCompletedTrip(null);
             setRatingModalOpen(false);
@@ -298,7 +319,7 @@ const UserDashboard = () => {
 
     // --- RENDER HELPERS ---
 
-    const renderVehicleOption = (type, label, description, priceFactor) => (
+    const renderVehicleOption = (type, label, description) => (
         <div
             onClick={() => setVehicleType(type)}
             className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${vehicleType === type ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}
@@ -311,6 +332,24 @@ const UserDashboard = () => {
             <p className="text-xs text-gray-500 mt-1">{description}</p>
         </div>
     );
+
+    const STATUS_LABELS = {
+        pending: 'Pendiente',
+        accepted: 'En Camino',
+        loading: 'Cargando',
+        in_progress: 'En Viaje',
+        completed: 'Finalizado',
+        cancelled: 'Cancelado',
+    };
+
+    const STATUS_COLORS = {
+        pending: 'bg-yellow-100 text-yellow-700',
+        accepted: 'bg-blue-100 text-blue-700',
+        loading: 'bg-indigo-100 text-indigo-700',
+        in_progress: 'bg-purple-100 text-purple-700',
+        completed: 'bg-green-100 text-green-700',
+        cancelled: 'bg-gray-100 text-gray-500',
+    };
 
     return (
         <div className="relative min-h-[calc(100vh-100px)]">
@@ -331,7 +370,7 @@ const UserDashboard = () => {
 
                         {/* Interactive Map */}
                         <MapContainer
-                            center={[-34.6037, -58.3816]}
+                            center={mapCenter}
                             zoom={13}
                             style={{ height: '100%', width: '100%' }}
                             zoomControl={false}
@@ -340,11 +379,50 @@ const UserDashboard = () => {
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                             />
-                            {/* Mock nearby drivers */}
-                            <Marker position={[-34.61, -58.39]}><Popup>Chofer Juan - Disponible</Popup></Marker>
-                            <Marker position={[-34.59, -58.41]}><Popup>Chofer Luis - Disponible</Popup></Marker>
+                            {availableDrivers.map(driver => (
+                                <Marker key={driver.id} position={[driver.driver_lat, driver.driver_lon]}>
+                                    <Popup>{driver.full_name} - {driver.vehicle_type} - Disponible</Popup>
+                                </Marker>
+                            ))}
                         </MapContainer>
                     </div>
+
+                    {/* Live Driver Tracking */}
+                    {(() => {
+                        const activeStatuses = ['accepted', 'loading', 'in_progress'];
+                        const trackedTrip = myTrips.find(t => activeStatuses.includes(t.status));
+                        if (!trackedTrip) return null;
+
+                        return (
+                            <div className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border-b border-blue-100">
+                                    <h3 className="font-semibold text-blue-900">Seguimiento en vivo</h3>
+                                    <span className="text-xs font-bold uppercase px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                                        {STATUS_LABELS[trackedTrip.status] || trackedTrip.status}
+                                    </span>
+                                </div>
+                                {trackedTrip.driver_lat && trackedTrip.driver_lon ? (
+                                    <div style={{ height: '220px' }}>
+                                        <MapContainer
+                                            center={[trackedTrip.driver_lat, trackedTrip.driver_lon]}
+                                            zoom={14}
+                                            style={{ height: '100%', width: '100%' }}
+                                            zoomControl={false}
+                                        >
+                                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                            <Marker position={[trackedTrip.driver_lat, trackedTrip.driver_lon]}>
+                                                <Popup>Tu chofer</Popup>
+                                            </Marker>
+                                        </MapContainer>
+                                    </div>
+                                ) : (
+                                    <div className="h-16 flex items-center justify-center text-sm text-gray-500">
+                                        Esperando ubicación del chofer...
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {/* Active Trips Quick View */}
                     {myTrips.length > 0 && (
@@ -354,27 +432,29 @@ const UserDashboard = () => {
                                 {myTrips.slice(0, 3).map(trip => (
                                     <div key={trip.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                                         <div className="flex justify-between items-start mb-2">
-                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                                                ${trip.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : ''}
-                                                ${trip.status === 'accepted' ? 'bg-blue-100 text-blue-700' : ''}
-                                                ${trip.status === 'completed' ? 'bg-green-100 text-green-700' : ''}
-                                            `}>
-                                                {trip.status === 'pending' ? 'Pendiente' :
-                                                    trip.status === 'accepted' ? 'En Camino' :
-                                                        trip.status === 'completed' ? 'Finalizado' : trip.status}
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${STATUS_COLORS[trip.status] || ''}`}>
+                                                {STATUS_LABELS[trip.status] || trip.status}
                                             </span>
                                             <span className="text-gray-500 font-bold">${trip.price}</span>
                                         </div>
-                                        <div className="space-y-2 text-sm text-gray-600">
+                                        <div className="space-y-2 text-sm text-gray-600 mb-3">
                                             <div className="flex items-center gap-2 truncate">
-                                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                                {trip.origin_address}
+                                                <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></div>
+                                                <span className="truncate">{trip.origin_address}</span>
                                             </div>
                                             <div className="flex items-center gap-2 truncate">
-                                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                                {trip.destination_address}
+                                                <div className="w-2 h-2 rounded-full bg-red-500 shrink-0"></div>
+                                                <span className="truncate">{trip.destination_address}</span>
                                             </div>
                                         </div>
+                                        {trip.status === 'pending' && (
+                                            <button
+                                                onClick={() => handleCancelTrip(trip.id)}
+                                                className="w-full text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 rounded-lg py-1.5 transition"
+                                            >
+                                                Cancelar pedido
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -406,13 +486,13 @@ const UserDashboard = () => {
                                     <input
                                         type="text"
                                         value={origin}
-                                        onChange={(e) => {
-                                            setOrigin(e.target.value);
-                                            fetchSuggestions(e.target.value, 'origin');
-                                        }}
+                                        onChange={(e) => setOrigin(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                         placeholder="¿Dónde retiramos?"
                                     />
+                                    {loadingSuggestions.origin && (
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</span>
+                                    )}
                                     {originSuggestions.length > 0 && (
                                         <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
                                             {originSuggestions.map((s, i) => (
@@ -426,13 +506,13 @@ const UserDashboard = () => {
                                     <input
                                         type="text"
                                         value={destination}
-                                        onChange={(e) => {
-                                            setDestination(e.target.value);
-                                            fetchSuggestions(e.target.value, 'destination');
-                                        }}
+                                        onChange={(e) => setDestination(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                         placeholder="¿Dónde entregamos?"
                                     />
+                                    {loadingSuggestions.destination && (
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</span>
+                                    )}
                                     {destinationSuggestions.length > 0 && (
                                         <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
                                             {destinationSuggestions.map((s, i) => (
@@ -480,7 +560,7 @@ const UserDashboard = () => {
                                             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                         />
                                         {uploadingPhoto && <span className="absolute right-3 top-2.5 text-xs text-blue-600">Subiendo...</span>}
-                                        {photoUrl && !uploadingPhoto && <span className="absolute right-3 top-2.5 text-xs text-green-600">¡Imagen cargada!</span>}
+                                        {photoUrl && !uploadingPhoto && <span className="absolute right-3 top-2.5 text-xs text-green-600">¡Cargada!</span>}
                                     </div>
                                 </div>
                             </div>
@@ -492,9 +572,9 @@ const UserDashboard = () => {
                                 <Truck className="w-4 h-4 text-blue-600" /> Vehículo
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                {renderVehicleOption('flete_chico', 'Utilitario', 'Kangoo / Partner', '$900/km')}
-                                {renderVehicleOption('flete_mediano', 'Camioneta', 'Hilux / S10', '$1500/km')}
-                                {renderVehicleOption('mudancera', 'Camión', 'Con caja mudancera', '$2500/km')}
+                                {renderVehicleOption('flete_chico', 'Utilitario', 'Kangoo / Partner')}
+                                {renderVehicleOption('flete_mediano', 'Camioneta', 'Hilux / S10')}
+                                {renderVehicleOption('mudancera', 'Camión', 'Con caja mudancera')}
                             </div>
                         </div>
 
@@ -525,7 +605,7 @@ const UserDashboard = () => {
                         {/* Map Preview */}
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-[300px] relative z-0">
                             <MapContainer
-                                center={[-34.6037, -58.3816]}
+                                center={mapCenter}
                                 zoom={12}
                                 style={{ height: '100%', width: '100%' }}
                             >
@@ -558,11 +638,9 @@ const UserDashboard = () => {
 
                             <div className="bg-white/10 p-4 rounded-xl mb-6">
                                 <p className="text-xs text-blue-200 mb-1 uppercase tracking-wider">Total Estimado</p>
-                                <div className="flex items-end gap-2">
-                                    <span className="text-3xl font-bold text-white">
-                                        {calculatedPrice ? `$${calculatedPrice}` : '---'}
-                                    </span>
-                                </div>
+                                <span className="text-3xl font-bold text-white">
+                                    {calculatedPrice ? `$${calculatedPrice}` : '---'}
+                                </span>
                             </div>
 
                             {!calculatedPrice ? (
