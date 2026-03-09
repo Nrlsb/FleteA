@@ -38,7 +38,10 @@ router.get('/available', async (req, res) => {
         .not('driver_lat', 'is', null)
         .not('driver_lon', 'is', null);
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+        console.error('Error fetching available drivers:', error.message, error.details);
+        return res.status(500).json({ error: error.message });
+    }
     res.json(data);
 });
 

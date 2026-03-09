@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Truck, DollarSign, Clock, Navigation, Package, Camera, ArrowRight, X } from 'lucide-react';
 import { supabase } from '../services/supabase';
@@ -78,6 +78,7 @@ const UserDashboard = () => {
     const [ratingModalOpen, setRatingModalOpen] = useState(false);
     const [justCompletedTrip, setJustCompletedTrip] = useState(null);
     const [availableDrivers, setAvailableDrivers] = useState([]);
+    const initialFetchDone = useRef(false);
 
     // Detect user location for map center
     useEffect(() => {
@@ -116,21 +117,30 @@ const UserDashboard = () => {
             .order('created_at', { ascending: false });
 
         if (data) {
-            const completedTrip = data.find(t => t.status === 'completed' && !myTrips.find(oldT => oldT.id === t.id && oldT.status === 'completed'));
-            if (completedTrip && !justCompletedTrip) {
-                setJustCompletedTrip(completedTrip);
-                setRatingModalOpen(true);
+            if (initialFetchDone.current) {
+                const completedTrip = data.find(t => t.status === 'completed' && !myTrips.find(oldT => oldT.id === t.id && oldT.status === 'completed'));
+                if (completedTrip && !justCompletedTrip) {
+                    setJustCompletedTrip(completedTrip);
+                    setRatingModalOpen(true);
+                }
             }
+            initialFetchDone.current = true;
             setMyTrips(data);
         }
     };
 
-    // Fetch available drivers
+    // Fetch available drivers directly from Supabase (public query, no auth needed)
     useEffect(() => {
         const fetchDrivers = async () => {
             try {
-                const res = await apiGet('/api/drivers/available');
-                if (res.ok) setAvailableDrivers(await res.json());
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, vehicle_type, driver_lat, driver_lon')
+                    .eq('is_available', true)
+                    .eq('role', 'driver')
+                    .not('driver_lat', 'is', null)
+                    .not('driver_lon', 'is', null);
+                if (!error && data) setAvailableDrivers(data);
             } catch (err) {
                 console.error('Error fetching drivers:', err);
             }
