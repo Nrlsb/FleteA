@@ -34,7 +34,7 @@ const DriverDashboard = () => {
     const fetchPendingTrips = async () => {
         let query = supabase
             .from('trips')
-            .select('*, profiles!trips_user_id_fkey(full_name)')
+            .select('*, profiles!user_id(full_name)')
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
@@ -50,7 +50,7 @@ const DriverDashboard = () => {
     const fetchActiveTrip = async () => {
         const { data } = await supabase
             .from('trips')
-            .select('*, profiles!trips_user_id_fkey(full_name)')
+            .select('*, profiles!user_id(full_name)')
             .eq('driver_id', user.id)
             .in('status', ['accepted', 'loading', 'in_progress'])
             .maybeSingle();
