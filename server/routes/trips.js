@@ -99,7 +99,7 @@ router.get('/pending', requireAuth, async (req, res) => {
 
     let query = supabase
         .from('trips')
-        .select('*, profiles:user_id(full_name)')
+        .select('*, profiles!trips_user_id_fkey(full_name)')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
