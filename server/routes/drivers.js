@@ -28,6 +28,31 @@ router.post('/status', requireAuth, async (req, res) => {
     res.json({ driver: data[0] });
 });
 
+// Update Driver Profile
+router.put('/profile', requireAuth, async (req, res) => {
+    const { full_name, vehicle_type, max_cargo_weight, vehicle_dimensions } = req.body;
+
+    const VALID_VEHICLE_TYPES = ['flete_chico', 'flete_mediano', 'mudancera'];
+    if (vehicle_type && !VALID_VEHICLE_TYPES.includes(vehicle_type)) {
+        return res.status(400).json({ error: 'Tipo de vehículo inválido' });
+    }
+
+    const updates = {};
+    if (full_name !== undefined) updates.full_name = full_name.trim();
+    if (vehicle_type !== undefined) updates.vehicle_type = vehicle_type;
+    if (max_cargo_weight !== undefined) updates.max_cargo_weight = max_cargo_weight || null;
+    if (vehicle_dimensions !== undefined) updates.vehicle_dimensions = vehicle_dimensions;
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', req.user.id)
+        .select();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ profile: data[0] });
+});
+
 // Get Available Drivers with location (public)
 router.get('/available', async (req, res) => {
     const { data, error } = await supabase

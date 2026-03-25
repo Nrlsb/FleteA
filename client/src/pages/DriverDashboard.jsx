@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
-import { apiPost } from '../services/api';
-import { MapPin, Navigation, DollarSign } from 'lucide-react';
+import { apiPost, apiPut } from '../services/api';
+import { MapPin, Navigation, DollarSign, Pencil } from 'lucide-react';
 import RatingModal from '../components/RatingModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import useDriverTracking from '../hooks/useDriverTracking';
@@ -21,6 +21,10 @@ const DriverDashboard = () => {
     const [ratingModalOpen, setRatingModalOpen] = useState(false);
     const [justCompletedTrip, setJustCompletedTrip] = useState(null);
     const [earnings, setEarnings] = useState(0);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editForm, setEditForm] = useState({});
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [editError, setEditError] = useState('');
 
     // GPS tracking hook
     useDriverTracking(activeTrip);
@@ -110,6 +114,53 @@ const DriverDashboard = () => {
         };
         fetchEarnings();
     }, [user, justCompletedTrip]);
+
+    const openEditModal = () => {
+        const dims = profile?.vehicle_dimensions || {};
+        setEditForm({
+            full_name: profile?.full_name || '',
+            vehicle_type: profile?.vehicle_type || 'flete_chico',
+            max_cargo_weight: profile?.max_cargo_weight || '',
+            dim_length: dims.length || '',
+            dim_width: dims.width || '',
+            dim_height: dims.height || '',
+        });
+        setEditError('');
+        setEditModalOpen(true);
+    };
+
+    const saveProfile = async () => {
+        if (!editForm.full_name.trim()) {
+            setEditError('El nombre no puede estar vacío.');
+            return;
+        }
+        setSavingProfile(true);
+        setEditError('');
+        try {
+            const vehicle_dimensions = {
+                length: editForm.dim_length ? parseFloat(editForm.dim_length) : null,
+                width: editForm.dim_width ? parseFloat(editForm.dim_width) : null,
+                height: editForm.dim_height ? parseFloat(editForm.dim_height) : null,
+            };
+            const res = await apiPut('/api/drivers/profile', {
+                full_name: editForm.full_name,
+                vehicle_type: editForm.vehicle_type,
+                max_cargo_weight: editForm.max_cargo_weight ? parseInt(editForm.max_cargo_weight) : null,
+                vehicle_dimensions,
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                setEditError(json.error || 'Error al guardar.');
+                return;
+            }
+            updateProfileLocal(json.profile);
+            setEditModalOpen(false);
+        } catch (e) {
+            setEditError('Error de red.');
+        } finally {
+            setSavingProfile(false);
+        }
+    };
 
     const toggleAvailability = async () => {
         const newState = !isAvailable;
@@ -241,7 +292,12 @@ const DriverDashboard = () => {
             {/* Header Status */}
             <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Panel de Chofer</h1>
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-2xl font-bold text-gray-900">Panel de Chofer</h1>
+                        <button onClick={openEditModal} title="Editar perfil" className="p-1 text-gray-400 hover:text-gray-700 transition">
+                            <Pencil className="w-4 h-4" />
+                        </button>
+                    </div>
                     <p className="text-gray-500">Vehículo: <span className="uppercase font-semibold">{profile?.vehicle_type}</span></p>
                     {(dimsText || profile?.max_cargo_weight) && (
                         <p className="text-gray-400 text-sm">
@@ -456,6 +512,98 @@ const DriverDashboard = () => {
                 cancelText="Volver"
                 type="warning"
             />
+
+            {editModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+                        <div className="p-6 border-b border-gray-100">
+                            <h2 className="text-lg font-bold text-gray-900">Editar Perfil</h2>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
+                                <input
+                                    type="text"
+                                    value={editForm.full_name}
+                                    onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de vehículo</label>
+                                <select
+                                    value={editForm.vehicle_type}
+                                    onChange={e => setEditForm(f => ({ ...f, vehicle_type: e.target.value }))}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="flete_chico">Flete Chico</option>
+                                    <option value="flete_mediano">Flete Mediano</option>
+                                    <option value="mudancera">Mudancera</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Peso máximo (kg)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={editForm.max_cargo_weight}
+                                    onChange={e => setEditForm(f => ({ ...f, max_cargo_weight: e.target.value }))}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Opcional"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Dimensiones (metros)</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={editForm.dim_length}
+                                        onChange={e => setEditForm(f => ({ ...f, dim_length: e.target.value }))}
+                                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Largo"
+                                    />
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={editForm.dim_width}
+                                        onChange={e => setEditForm(f => ({ ...f, dim_width: e.target.value }))}
+                                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Ancho"
+                                    />
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={editForm.dim_height}
+                                        onChange={e => setEditForm(f => ({ ...f, dim_height: e.target.value }))}
+                                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Alto"
+                                    />
+                                </div>
+                            </div>
+                            {editError && <p className="text-sm text-red-600">{editError}</p>}
+                        </div>
+                        <div className="p-6 border-t border-gray-100 flex gap-3 justify-end">
+                            <button
+                                onClick={() => setEditModalOpen(false)}
+                                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={saveProfile}
+                                disabled={savingProfile}
+                                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                            >
+                                {savingProfile ? 'Guardando...' : 'Guardar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

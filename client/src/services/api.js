@@ -23,6 +23,15 @@ export const apiPost = async (path, body) => {
     });
 };
 
+export const apiPut = async (path, body) => {
+    const headers = await getAuthHeaders();
+    return fetch(`${import.meta.env.VITE_API_URL}${path}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(body)
+    });
+};
+
 export const apiDelete = async (path) => {
     const headers = await getAuthHeaders();
     return fetch(`${import.meta.env.VITE_API_URL}${path}`, {
