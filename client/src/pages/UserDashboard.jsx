@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Truck, DollarSign, Clock, Navigation, Package, Camera, ArrowRight, X } from 'lucide-react';
+import { MapPin, Truck, DollarSign, Clock, Navigation, Package, Camera, ArrowRight, X, Pencil } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { apiGet, apiPost, apiDelete } from '../services/api';
 import RatingModal from '../components/RatingModal';
@@ -62,6 +62,11 @@ const UserDashboard = () => {
     const [loadingSuggestions, setLoadingSuggestions] = useState({ origin: false, destination: false });
     const [routePoints, setRoutePoints] = useState([]);
 
+    // City reference for address search
+    const [searchCity, setSearchCity] = useState('');
+    const [editingCity, setEditingCity] = useState(false);
+    const [cityInput, setCityInput] = useState('');
+
     const debouncedOrigin = useDebounce(origin, 300);
     const debouncedDestination = useDebounce(destination, 300);
 
@@ -80,11 +85,20 @@ const UserDashboard = () => {
     const [availableDrivers, setAvailableDrivers] = useState([]);
     const initialFetchDone = useRef(false);
 
-    // Detect user location for map center
+    // Detect user location for map center and city reference
     useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                (pos) => setMapCenter([pos.coords.latitude, pos.coords.longitude]),
+                async (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    setMapCenter([latitude, longitude]);
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`);
+                        const data = await res.json();
+                        const city = data.address?.city || data.address?.town || data.address?.village || data.address?.municipality || '';
+                        if (city) setSearchCity(city);
+                    } catch (_) {}
+                },
                 () => {} // fallback to default Buenos Aires
             );
         }
@@ -159,15 +173,27 @@ const UserDashboard = () => {
         fetchSuggestions(debouncedDestination, 'destination');
     }, [debouncedDestination]);
 
+    const formatSuggestion = (s) => {
+        const a = s.address || {};
+        const parts = [
+            a.road || a.pedestrian || a.footway || a.path,
+            a.house_number,
+            a.suburb || a.neighbourhood || a.city_district,
+            a.city || a.town || a.village,
+        ].filter(Boolean);
+        return parts.length > 1 ? parts.join(', ') : s.display_name;
+    };
+
     const fetchSuggestions = async (query, type) => {
         if (query.length < 3) {
             type === 'origin' ? setOriginSuggestions([]) : setDestinationSuggestions([]);
             return;
         }
 
+        const biasedQuery = searchCity ? `${query}, ${searchCity}` : query;
         setLoadingSuggestions(prev => ({ ...prev, [type]: true }));
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ar&limit=5&addressdetails=1`);
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(biasedQuery)}&countrycodes=ar&limit=5&addressdetails=1`);
             const data = await response.json();
             type === 'origin' ? setOriginSuggestions(data) : setDestinationSuggestions(data);
         } catch (err) {
@@ -194,13 +220,14 @@ const UserDashboard = () => {
     };
 
     const handleSelectSuggestion = (suggestion, type) => {
+        const label = formatSuggestion(suggestion);
         if (type === 'origin') {
-            setOrigin(suggestion.display_name);
+            setOrigin(label);
             setOriginCoords({ lat: suggestion.lat, lon: suggestion.lon });
             setOriginSuggestions([]);
             if (destinationCoords) calculateRouteDistance({ lat: suggestion.lat, lon: suggestion.lon }, destinationCoords);
         } else {
-            setDestination(suggestion.display_name);
+            setDestination(label);
             setDestinationCoords({ lat: suggestion.lat, lon: suggestion.lon });
             setDestinationSuggestions([]);
             if (originCoords) calculateRouteDistance(originCoords, { lat: suggestion.lat, lon: suggestion.lon });
@@ -487,9 +514,41 @@ const UserDashboard = () => {
 
                         {/* 1. Route */}
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                                <Navigation className="w-4 h-4 text-blue-600" /> Ruta
-                            </h3>
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                                    <Navigation className="w-4 h-4 text-blue-600" /> Ruta
+                                </h3>
+                                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                    <MapPin className="w-3 h-3" />
+                                    <span>Ciudad:</span>
+                                    {editingCity ? (
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="text"
+                                                value={cityInput}
+                                                onChange={(e) => setCityInput(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') { setSearchCity(cityInput.trim()); setEditingCity(false); }
+                                                    if (e.key === 'Escape') setEditingCity(false);
+                                                }}
+                                                className="border border-blue-300 rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-blue-400 w-28"
+                                                autoFocus
+                                                placeholder="Ej: Córdoba"
+                                            />
+                                            <button onClick={() => { setSearchCity(cityInput.trim()); setEditingCity(false); }} className="text-blue-600 font-semibold hover:text-blue-800">OK</button>
+                                            <button onClick={() => setEditingCity(false)} className="text-gray-400 hover:text-gray-600"><X className="w-3 h-3" /></button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => { setCityInput(searchCity); setEditingCity(true); }}
+                                            className="flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-800"
+                                        >
+                                            {searchCity || 'Detectando...'}
+                                            <Pencil className="w-3 h-3" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                             <div className="space-y-3">
                                 <div className="relative">
                                     <MapPin className="absolute left-3 top-2.5 w-5 h-5 text-green-600" />
@@ -506,7 +565,9 @@ const UserDashboard = () => {
                                     {originSuggestions.length > 0 && (
                                         <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
                                             {originSuggestions.map((s, i) => (
-                                                <li key={i} onClick={() => handleSelectSuggestion(s, 'origin')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm font-medium border-b border-gray-50 last:border-0">{s.display_name}</li>
+                                                <li key={i} onClick={() => handleSelectSuggestion(s, 'origin')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm border-b border-gray-50 last:border-0">
+                                                    <span className="font-medium">{formatSuggestion(s)}</span>
+                                                </li>
                                             ))}
                                         </ul>
                                     )}
@@ -526,7 +587,9 @@ const UserDashboard = () => {
                                     {destinationSuggestions.length > 0 && (
                                         <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
                                             {destinationSuggestions.map((s, i) => (
-                                                <li key={i} onClick={() => handleSelectSuggestion(s, 'destination')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm font-medium border-b border-gray-50 last:border-0">{s.display_name}</li>
+                                                <li key={i} onClick={() => handleSelectSuggestion(s, 'destination')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm border-b border-gray-50 last:border-0">
+                                                    <span className="font-medium">{formatSuggestion(s)}</span>
+                                                </li>
                                             ))}
                                         </ul>
                                     )}
