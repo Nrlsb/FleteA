@@ -87,7 +87,7 @@ const DriverDashboard = () => {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [user]);
+    }, [user, profile?.vehicle_type]);
 
     // Earnings: only today (uses end_time if available, falls back to updated_at)
     useEffect(() => {
@@ -398,6 +398,9 @@ const DriverDashboard = () => {
                     {pendingTrips.length === 0 ? (
                         <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
                             <p className="text-gray-500">No hay pedidos pendientes en este momento.</p>
+                            {profile?.vehicle_type && (
+                                <p className="text-xs text-gray-400 mt-1">Filtrando por: <span className="font-semibold uppercase">{profile.vehicle_type.replace(/_/g, ' ')}</span></p>
+                            )}
                         </div>
                     ) : (
                         <div className="grid gap-4">
