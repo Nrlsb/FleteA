@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { apiPost, apiPut } from '../services/api';
-import { MapPin, Navigation, DollarSign, Pencil } from 'lucide-react';
+import { MapPin, Navigation, DollarSign, Pencil, X, Package, Wrench } from 'lucide-react';
 import RatingModal from '../components/RatingModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import useDriverTracking from '../hooks/useDriverTracking';
@@ -21,6 +21,7 @@ const DriverDashboard = () => {
     const [ratingModalOpen, setRatingModalOpen] = useState(false);
     const [justCompletedTrip, setJustCompletedTrip] = useState(null);
     const [earnings, setEarnings] = useState(0);
+    const [selectedTrip, setSelectedTrip] = useState(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({});
     const [savingProfile, setSavingProfile] = useState(false);
@@ -461,16 +462,25 @@ const DriverDashboard = () => {
                     ) : (
                         <div className="grid gap-4">
                             {pendingTrips.map(trip => (
-                                <div key={trip.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-blue-300 transition-colors">
+                                <button
+                                    key={trip.id}
+                                    onClick={() => setSelectedTrip(trip)}
+                                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-blue-400 hover:shadow-md transition-all text-left w-full"
+                                >
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-2">
                                             <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><DollarSign className="w-5 h-5" /></div>
                                             <span className="text-2xl font-bold text-gray-900">${trip.price}</span>
                                         </div>
-                                        <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold uppercase">{trip.distance_km} km</span>
+                                        <div className="flex items-center gap-2">
+                                            {trip.services?.length > 0 && (
+                                                <span className="bg-orange-100 text-orange-600 px-2 py-1 rounded-full text-xs font-semibold">+{trip.services.length} servicio{trip.services.length > 1 ? 's' : ''}</span>
+                                            )}
+                                            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold uppercase">{trip.distance_km} km</span>
+                                        </div>
                                     </div>
 
-                                    <div className="space-y-3 mb-6">
+                                    <div className="space-y-3">
                                         <div className="flex items-center gap-3">
                                             <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></div>
                                             <span className="text-gray-600 truncate">{trip.origin_address}</span>
@@ -480,18 +490,113 @@ const DriverDashboard = () => {
                                             <span className="text-gray-600 truncate">{trip.destination_address}</span>
                                         </div>
                                     </div>
-
-                                    <button
-                                        onClick={() => acceptTrip(trip.id)}
-                                        disabled={!isAvailable || loading}
-                                        className="w-full py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-black transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isAvailable ? 'Aceptar Viaje' : 'Ponete disponible para aceptar'}
-                                    </button>
-                                </div>
+                                    <p className="text-xs text-blue-500 mt-4 font-medium">Tap para ver detalles →</p>
+                                </button>
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {selectedTrip && (
+                <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center p-5 border-b border-gray-100">
+                            <h2 className="text-lg font-bold text-gray-900">Detalles del Pedido</h2>
+                            <button onClick={() => setSelectedTrip(null)} className="p-1 text-gray-400 hover:text-gray-700 transition">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-5">
+                            {/* Price + distance */}
+                            <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
+                                <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Ganancia estimada</p>
+                                    <p className="text-3xl font-bold text-gray-900">${(selectedTrip.price * 0.85).toFixed(0)}</p>
+                                    <p className="text-xs text-gray-400">de ${selectedTrip.price} total</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Distancia</p>
+                                    <p className="text-2xl font-bold text-gray-700">{selectedTrip.distance_km} km</p>
+                                </div>
+                            </div>
+
+                            {/* Addresses */}
+                            <div className="space-y-3">
+                                <div className="flex gap-3 items-start">
+                                    <div className="mt-1 w-3 h-3 rounded-full bg-blue-500 shrink-0"></div>
+                                    <div>
+                                        <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Origen</p>
+                                        <p className="text-gray-800 font-medium">{selectedTrip.origin_address}</p>
+                                    </div>
+                                </div>
+                                <div className="ml-1.5 w-0.5 h-4 bg-gray-200"></div>
+                                <div className="flex gap-3 items-start">
+                                    <div className="mt-1 w-3 h-3 rounded-full bg-red-500 shrink-0"></div>
+                                    <div>
+                                        <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Destino</p>
+                                        <p className="text-gray-800 font-medium">{selectedTrip.destination_address}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Category */}
+                            {selectedTrip.category && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <Package className="w-4 h-4 text-gray-400" />
+                                    <span>Categoría: <span className="font-semibold capitalize">{selectedTrip.category}</span></span>
+                                </div>
+                            )}
+
+                            {/* Services */}
+                            {selectedTrip.services?.length > 0 && (
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Wrench className="w-4 h-4 text-gray-400" />
+                                        <p className="text-sm font-medium text-gray-700">Servicios adicionales</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedTrip.services.map(s => (
+                                            <span key={s} className="bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1 rounded-full text-xs font-semibold capitalize">
+                                                {s === 'helper' ? 'Ayudante' : s === 'packing' ? 'Embalaje' : s}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Photos */}
+                            {selectedTrip.photos?.length > 0 && (
+                                <div>
+                                    <p className="text-sm font-medium text-gray-700 mb-2">Fotos de la carga</p>
+                                    <div className="flex gap-2 flex-wrap">
+                                        {selectedTrip.photos.map((url, i) => (
+                                            <a key={i} href={url} target="_blank" rel="noreferrer">
+                                                <img src={url} alt={`Foto ${i + 1}`} className="h-20 w-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-5 border-t border-gray-100 flex gap-3">
+                            <button
+                                onClick={() => setSelectedTrip(null)}
+                                className="flex-1 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                            >
+                                Volver
+                            </button>
+                            <button
+                                onClick={() => { acceptTrip(selectedTrip.id); setSelectedTrip(null); }}
+                                disabled={!isAvailable || loading}
+                                className="flex-1 py-2.5 bg-gray-900 text-white rounded-lg font-semibold hover:bg-black transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            >
+                                {isAvailable ? 'Aceptar Viaje' : 'No disponible'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
