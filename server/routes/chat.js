@@ -1,7 +1,7 @@
 import express from 'express';
 import requireAuth from '../middleware/auth.js';
-import * as ratingController from '../controllers/ratingController.js';
-import { createRatingSchema } from '../validators/ratingValidator.js';
+import * as chatController from '../controllers/chatController.js';
+import { sendMessageSchema } from '../validators/chatValidator.js';
 
 const router = express.Router();
 
@@ -14,6 +14,7 @@ const validate = (schema) => (req, res, next) => {
     next();
 };
 
-router.post('/', requireAuth, validate(createRatingSchema), ratingController.createRating);
+router.get('/:tripId', requireAuth, chatController.getMessages);
+router.post('/', requireAuth, validate(sendMessageSchema), chatController.sendMessage);
 
 export default router;

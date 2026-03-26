@@ -1,4 +1,4 @@
-const supabase = require('../lib/supabase');
+import supabase from '../lib/supabase.js';
 
 const requireAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -17,4 +17,4 @@ const requireAuth = async (req, res, next) => {
     next();
 };
 
-module.exports = requireAuth;
+export default requireAuth;
