@@ -23,7 +23,7 @@ export function useRealtime(table, filter, queryKey) {
             .subscribe();
 
         return () => {
-            supabase.removeChannel(channel);
+            channel.unsubscribe();
         };
-    }, [table, filter, queryKey, queryClient]);
+    }, [table, filter]);
 }

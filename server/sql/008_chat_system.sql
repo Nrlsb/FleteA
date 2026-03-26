@@ -30,3 +30,6 @@ CREATE POLICY "Users can send messages for their trips"
       AND (trips.user_id = auth.uid() OR trips.driver_id = auth.uid())
     )
   );
+
+-- Enable Realtime for messages
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
