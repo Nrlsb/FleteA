@@ -17,6 +17,13 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+const userLocationIcon = new L.DivIcon({
+    html: '<div style="background-color: #3b82f6; width: 16px; height: 16px; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>',
+    className: 'user-location-icon',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+});
+
 // Helper component to update map view
 const MapUpdater = ({ coords }) => {
     const map = useMap();
@@ -34,6 +41,22 @@ const MapUpdater = ({ coords }) => {
         }
     }, [coords, map]);
     return null;
+};
+
+// Component to show and follow user's location
+const UserLocationMarker = ({ position }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (position) {
+            map.panTo(position);
+        }
+    }, [position, map]);
+
+    return position ? (
+        <Marker position={position} icon={userLocationIcon}>
+            <Popup>Tu ubicación actual</Popup>
+        </Marker>
+    ) : null;
 };
 
 const UserDashboard = () => {
@@ -97,9 +120,9 @@ const UserDashboard = () => {
                         const data = await res.json();
                         const city = data.address?.city || data.address?.town || data.address?.village || data.address?.municipality || '';
                         if (city) setSearchCity(city);
-                    } catch (_) {}
+                    } catch (_) { }
                 },
-                () => {} // fallback to default Buenos Aires
+                () => { } // fallback to default Buenos Aires
             );
         }
     }, []);
@@ -416,12 +439,21 @@ const UserDashboard = () => {
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                             />
+                            <UserLocationMarker position={mapCenter} />
                             {availableDrivers.map(driver => (
                                 <Marker key={driver.id} position={[driver.driver_lat, driver.driver_lon]}>
                                     <Popup>{driver.full_name} - {driver.vehicle_type} - Disponible</Popup>
                                 </Marker>
                             ))}
                         </MapContainer>
+
+                        {/* City Badge Overlay */}
+                        {searchCity && (
+                            <div className="absolute top-4 left-4 z-[1000] bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md border border-gray-200 flex items-center gap-2">
+                                <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                                <span className="text-xs font-bold text-gray-700 capitalize">{searchCity}</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Live Driver Tracking */}
