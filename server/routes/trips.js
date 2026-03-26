@@ -118,13 +118,49 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
 
     const { data, error } = await supabase
         .from('trips')
-        .update({ driver_id: req.user.id, status: 'accepted' })
+        .update({ driver_id: req.user.id, status: 'driver_pending' })
         .eq('id', id)
         .eq('status', 'pending')
         .select();
 
     if (error) return res.status(500).json({ error: error.message });
     if (data.length === 0) return res.status(400).json({ error: 'Trip not found or already accepted' });
+
+    res.json({ trip: data[0] });
+});
+
+// Client Confirm Driver
+router.post('/:id/confirm_driver', requireAuth, async (req, res) => {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+        .from('trips')
+        .update({ status: 'accepted' })
+        .eq('id', id)
+        .eq('user_id', req.user.id)
+        .eq('status', 'driver_pending')
+        .select();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (data.length === 0) return res.status(400).json({ error: 'Trip not found or not in pending confirmation state' });
+
+    res.json({ trip: data[0] });
+});
+
+// Client Reject Driver
+router.post('/:id/reject_driver', requireAuth, async (req, res) => {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+        .from('trips')
+        .update({ status: 'pending', driver_id: null })
+        .eq('id', id)
+        .eq('user_id', req.user.id)
+        .eq('status', 'driver_pending')
+        .select();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (data.length === 0) return res.status(400).json({ error: 'Trip not found or not in pending confirmation state' });
 
     res.json({ trip: data[0] });
 });

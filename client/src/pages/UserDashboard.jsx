@@ -106,6 +106,7 @@ const UserDashboard = () => {
     const [ratingModalOpen, setRatingModalOpen] = useState(false);
     const [justCompletedTrip, setJustCompletedTrip] = useState(null);
     const [availableDrivers, setAvailableDrivers] = useState([]);
+    const [pendingDriverProfiles, setPendingDriverProfiles] = useState({});
     const initialFetchDone = useRef(false);
 
     // Detect user location for map center and city reference
@@ -162,6 +163,22 @@ const UserDashboard = () => {
                 }
             }
             initialFetchDone.current = true;
+
+            // Fetch driver profiles for pending approvals
+            const pendingTrips = data.filter(t => t.status === 'driver_pending' && t.driver_id);
+            if (pendingTrips.length > 0) {
+                const driverIds = [...new Set(pendingTrips.map(t => t.driver_id))];
+                const { data: drivers } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .in('id', driverIds);
+                if (drivers) {
+                    const profMap = {};
+                    drivers.forEach(d => profMap[d.id] = d);
+                    setPendingDriverProfiles(profMap);
+                }
+            }
+
             setMyTrips(data);
         }
     };
@@ -361,6 +378,20 @@ const UserDashboard = () => {
         }
     };
 
+    const confirmDriver = async (tripId) => {
+        try {
+            const res = await apiPost(`/api/trips/${tripId}/confirm_driver`, {});
+            if (res.ok) fetchTrips();
+        } catch (e) { console.error('Error confirming driver:', e); }
+    };
+
+    const rejectDriver = async (tripId) => {
+        try {
+            const res = await apiPost(`/api/trips/${tripId}/reject_driver`, {});
+            if (res.ok) fetchTrips();
+        } catch (e) { console.error('Error rejecting driver:', e); }
+    };
+
     const submitRating = async ({ rating, comment }) => {
         if (!justCompletedTrip || !justCompletedTrip.driver_id) return;
         try {
@@ -395,6 +426,7 @@ const UserDashboard = () => {
 
     const STATUS_LABELS = {
         pending: 'Pendiente',
+        driver_pending: 'Esperando Confirmación',
         accepted: 'En Camino',
         loading: 'Cargando',
         in_progress: 'En Viaje',
@@ -403,7 +435,8 @@ const UserDashboard = () => {
     };
 
     const STATUS_COLORS = {
-        pending: 'bg-yellow-100 text-yellow-700',
+        pending: 'bg-gray-100 text-gray-700',
+        driver_pending: 'bg-yellow-200 text-yellow-800',
         accepted: 'bg-blue-100 text-blue-700',
         loading: 'bg-indigo-100 text-indigo-700',
         in_progress: 'bg-purple-100 text-purple-700',
@@ -523,6 +556,30 @@ const UserDashboard = () => {
                                             >
                                                 Cancelar pedido
                                             </button>
+                                        )}
+                                        {trip.status === 'driver_pending' && (
+                                            <div className="mt-3 bg-yellow-50 p-3 rounded border border-yellow-200">
+                                                <p className="text-xs font-bold text-yellow-800 mb-2">¡Chofer Encontrado!</p>
+                                                {pendingDriverProfiles[trip.driver_id] && (
+                                                    <p className="text-xs text-yellow-700 mb-3 hover:text-yellow-900 transition">
+                                                        Chofer: <span className="font-semibold">{pendingDriverProfiles[trip.driver_id].full_name}</span> - <span className="uppercase">{pendingDriverProfiles[trip.driver_id].vehicle_type?.replace('_', ' ')}</span>
+                                                    </p>
+                                                )}
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => confirmDriver(trip.id)}
+                                                        className="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 rounded transition shadow-sm"
+                                                    >
+                                                        Aceptar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => rejectDriver(trip.id)}
+                                                        className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1.5 rounded transition shadow-sm"
+                                                    >
+                                                        Rechazar
+                                                    </button>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 ))}

@@ -60,7 +60,7 @@ const DriverDashboard = () => {
             .from('trips')
             .select('*')
             .eq('driver_id', user.id)
-            .in('status', ['accepted', 'loading', 'in_progress'])
+            .in('status', ['driver_pending', 'accepted', 'loading', 'in_progress'])
             .maybeSingle();
 
         if (error) {
@@ -341,22 +341,29 @@ const DriverDashboard = () => {
 
                     <div className="space-y-4 mb-8">
                         {/* Status Bar */}
-                        <div className="flex justify-between items-center mb-4 bg-blue-700/30 p-3 rounded-lg">
-                            <div className={`flex flex-col items-center ${['accepted', 'loading', 'in_progress'].includes(activeTrip.status) ? 'text-white' : 'text-blue-300'}`}>
-                                <div className="w-3 h-3 rounded-full bg-current mb-1" />
-                                <span className="text-xs">Aceptado</span>
+                        {activeTrip.status === 'driver_pending' ? (
+                            <div className="bg-white/20 border border-white/40 text-white p-4 mb-6 rounded-lg text-center animate-pulse">
+                                <p className="font-bold text-lg mb-1">¡Viaje Solicitado!</p>
+                                <p className="text-sm text-blue-100">Esperando que el cliente confirme para iniciar.</p>
                             </div>
-                            <div className={`h-[2px] flex-1 mx-2 ${['loading', 'in_progress'].includes(activeTrip.status) ? 'bg-white' : 'bg-blue-300/30'}`} />
-                            <div className={`flex flex-col items-center ${['loading', 'in_progress'].includes(activeTrip.status) ? 'text-white' : 'text-blue-300'}`}>
-                                <div className="w-3 h-3 rounded-full bg-current mb-1" />
-                                <span className="text-xs">Cargando</span>
+                        ) : (
+                            <div className="flex justify-between items-center mb-4 bg-blue-700/30 p-3 rounded-lg">
+                                <div className={`flex flex-col items-center ${['accepted', 'loading', 'in_progress'].includes(activeTrip.status) ? 'text-white' : 'text-blue-300'}`}>
+                                    <div className="w-3 h-3 rounded-full bg-current mb-1" />
+                                    <span className="text-xs">Aceptado</span>
+                                </div>
+                                <div className={`h-[2px] flex-1 mx-2 ${['loading', 'in_progress'].includes(activeTrip.status) ? 'bg-white' : 'bg-blue-300/30'}`} />
+                                <div className={`flex flex-col items-center ${['loading', 'in_progress'].includes(activeTrip.status) ? 'text-white' : 'text-blue-300'}`}>
+                                    <div className="w-3 h-3 rounded-full bg-current mb-1" />
+                                    <span className="text-xs">Cargando</span>
+                                </div>
+                                <div className={`h-[2px] flex-1 mx-2 ${activeTrip.status === 'in_progress' ? 'bg-white' : 'bg-blue-300/30'}`} />
+                                <div className={`flex flex-col items-center ${activeTrip.status === 'in_progress' ? 'text-white' : 'text-blue-300'}`}>
+                                    <div className="w-3 h-3 rounded-full bg-current mb-1" />
+                                    <span className="text-xs">En Viaje</span>
+                                </div>
                             </div>
-                            <div className={`h-[2px] flex-1 mx-2 ${activeTrip.status === 'in_progress' ? 'bg-white' : 'bg-blue-300/30'}`} />
-                            <div className={`flex flex-col items-center ${activeTrip.status === 'in_progress' ? 'text-white' : 'text-blue-300'}`}>
-                                <div className="w-3 h-3 rounded-full bg-current mb-1" />
-                                <span className="text-xs">En Viaje</span>
-                            </div>
-                        </div>
+                        )}
 
                         <div className="flex gap-3 items-start">
                             <div className="p-2 bg-white/10 rounded-lg"><MapPin className="w-5 h-5" /></div>
