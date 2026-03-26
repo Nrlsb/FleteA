@@ -603,7 +603,7 @@ const UserDashboard = () => {
 
                         {/* 1. Route */}
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
                                 <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                                     <Navigation className="w-4 h-4 text-blue-600" /> Ruta
                                 </h3>

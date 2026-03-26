@@ -16,13 +16,13 @@ const Home = () => {
 
     return (
         <div className="text-center py-20 px-4">
-            <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight sm:text-6xl mb-6">
+            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight sm:text-5xl md:text-6xl mb-6">
                 Tu flete en <span className="text-blue-600">Santa Fe</span>
             </h1>
             <p className="mt-4 text-xl text-gray-500 max-w-2xl mx-auto mb-10">
                 Conectamos usuarios con fletes y mudanzas en Santa Fe, Esperanza y Santo Tomé. Rápido, seguro y transparente.
             </p>
-            <div className="flex justify-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Link to="/register" className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                     Pedir Flete Ahora
                 </Link>

@@ -291,7 +291,7 @@ const DriverDashboard = () => {
     return (
         <div className="max-w-4xl mx-auto">
             {/* Header Status */}
-            <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex justify-between items-center mb-8">
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-8">
                 <div>
                     <div className="flex items-center gap-2">
                         <h1 className="text-2xl font-bold text-gray-900">Panel de Chofer</h1>
@@ -308,8 +308,8 @@ const DriverDashboard = () => {
                         </p>
                     )}
                 </div>
-                <div className="flex items-center gap-6">
-                    <div className="text-right">
+                <div className="flex w-full sm:w-auto justify-between sm:justify-end items-center gap-4 sm:gap-6 mt-2 sm:mt-0 pt-4 sm:pt-0 border-t sm:border-0 border-gray-100">
+                    <div className="text-left sm:text-right">
                         <p className="text-sm text-gray-500">Ganancias Hoy</p>
                         <p className="text-xl font-bold text-green-600">${earnings.toFixed(0)}</p>
                     </div>
@@ -474,7 +474,7 @@ const DriverDashboard = () => {
                                     onClick={() => setSelectedTrip(trip)}
                                     className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-blue-400 hover:shadow-md transition-all text-left w-full"
                                 >
-                                    <div className="flex justify-between items-start mb-4">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-3 sm:gap-0">
                                         <div className="flex items-center gap-2">
                                             <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><DollarSign className="w-5 h-5" /></div>
                                             <span className="text-2xl font-bold text-gray-900">${trip.price}</span>
@@ -517,7 +517,7 @@ const DriverDashboard = () => {
 
                         <div className="p-5 space-y-5">
                             {/* Price + distance */}
-                            <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 rounded-lg p-4 gap-4 sm:gap-0">
                                 <div>
                                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Ganancia estimada</p>
                                     <p className="text-3xl font-bold text-gray-900">${(selectedTrip.price * 0.85).toFixed(0)}</p>
@@ -588,7 +588,7 @@ const DriverDashboard = () => {
                             )}
                         </div>
 
-                        <div className="p-5 border-t border-gray-100 flex gap-3">
+                        <div className="p-5 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
                             <button
                                 onClick={() => setSelectedTrip(null)}
                                 className="flex-1 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
