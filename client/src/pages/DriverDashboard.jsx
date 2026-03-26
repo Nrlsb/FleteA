@@ -193,49 +193,105 @@ const DriverDashboard = () => {
 
                     {activeTrip ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-primary p-6 rounded-xl shadow-lg text-white animate-fade-in space-y-6">
+                            <div className="bg-white p-6 rounded-2xl shadow-xl border-2 border-primary/10 animate-fade-in space-y-6 relative overflow-hidden">
+                                {/* Accent gradient bar */}
+                                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-blue-400" />
+
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <h2 className="text-xl font-bold">Viaje en curso</h2>
-                                        <p className="text-primary-foreground/80">Cliente: {activeTrip.profiles?.full_name || 'Particular'}</p>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                            <h2 className="text-xl font-extrabold text-gray-900">Viaje en curso</h2>
+                                        </div>
+                                        <p className="text-gray-500 text-sm font-medium">Cliente: <span className="text-gray-900">{activeTrip.profiles?.full_name || 'Particular'}</span></p>
                                     </div>
-                                    <div className="bg-white/20 px-3 py-1 rounded-lg text-xl font-bold">${activeTrip.price}</div>
+                                    <div className="bg-primary/10 px-4 py-2 rounded-xl border border-primary/20">
+                                        <p className="text-xs text-primary font-bold uppercase tracking-wider mb-0.5">Precio</p>
+                                        <div className="text-2xl font-black text-primary">${activeTrip.price}</div>
+                                    </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <div className="flex gap-3"><MapPin className="w-5 h-5 opacity-70" /> <div><p className="text-[10px] uppercase opacity-70">Origen</p><p className="font-medium">{activeTrip.origin_address}</p></div></div>
-                                    <div className="flex gap-3"><Navigation className="w-5 h-5 opacity-70" /> <div><p className="text-[10px] uppercase opacity-70">Destino</p><p className="font-medium">{activeTrip.destination_address}</p></div></div>
+                                <div className="grid gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                                    <div className="flex gap-4">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                                <MapPin className="w-4 h-4" />
+                                            </div>
+                                            <div className="w-0.5 h-full bg-dashed border-l-2 border-dashed border-gray-200" />
+                                        </div>
+                                        <div className="pb-2">
+                                            <p className="text-[10px] uppercase font-bold text-primary tracking-widest mb-1">Origen</p>
+                                            <p className="text-sm font-semibold text-gray-800 leading-tight">{activeTrip.origin_address}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                            <Navigation className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] uppercase font-bold text-green-600 tracking-widest mb-1">Destino</p>
+                                            <p className="text-sm font-semibold text-gray-800 leading-tight">{activeTrip.destination_address}</p>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {activeTrip.status === 'driver_pending' ? (
-                                    <div className="bg-white/10 p-4 rounded-lg border border-white/20 text-center animate-pulse font-bold">Esperando confirmación del cliente...</div>
+                                    <div className="bg-amber-50 p-5 rounded-xl border border-amber-200 text-center animate-pulse">
+                                        <p className="text-amber-700 font-bold flex items-center justify-center gap-2">
+                                            <Wrench className="w-5 h-5" />
+                                            Esperando confirmación del cliente...
+                                        </p>
+                                        <p className="text-amber-600/70 text-xs mt-1">El cliente debe aceptar tu propuesta para comenzar.</p>
+                                    </div>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-4 pt-2">
                                         {activeTrip.status === 'accepted' && (
-                                            <Button className="w-full bg-white text-primary hover:bg-white/90 font-bold" onClick={() => updateStatusMutation.mutate({ id: activeTrip.id, status: 'loading' })}>Llegué al origen / Cargar</Button>
+                                            <Button className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]" onClick={() => updateStatusMutation.mutate({ id: activeTrip.id, status: 'loading' })}>
+                                                Llegué al origen / Cargar
+                                            </Button>
                                         )}
                                         {activeTrip.status === 'loading' && (
-                                            <div className="space-y-4 bg-white/10 p-4 rounded-lg">
-                                                <p className="text-sm font-bold">Prueba de Carga</p>
+                                            <div className="space-y-4 p-5 bg-blue-50/50 rounded-xl border border-blue-100">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-sm font-bold text-blue-900 uppercase tracking-tight">Prueba de Carga</p>
+                                                    {uploadingPhoto.loading && <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />}
+                                                </div>
                                                 {!loadingPhotoUrl ? (
-                                                    <input type="file" onChange={async (e) => { const url = await uploadPhoto(e.target.files[0], 'loading'); if (url) setLoadingPhotoUrl(url); }} className="text-xs" />
+                                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-200 rounded-xl bg-white hover:bg-blue-50 transition-colors cursor-pointer group">
+                                                        <Package className="w-8 h-8 text-blue-300 group-hover:text-blue-500 mb-2" />
+                                                        <span className="text-xs font-bold text-blue-400 group-hover:text-blue-600">Subir foto de la carga</span>
+                                                        <input type="file" onChange={async (e) => { const url = await uploadPhoto(e.target.files[0], 'loading'); if (url) setLoadingPhotoUrl(url); }} className="hidden" />
+                                                    </label>
                                                 ) : (
-                                                    <div className="space-y-3">
-                                                        <img src={loadingPhotoUrl} className="h-24 rounded-lg" alt="Carga" />
-                                                        <Button className="w-full bg-green-500 hover:bg-green-600" onClick={() => updateStatusMutation.mutate({ id: activeTrip.id, status: 'in_progress', photoUrl: loadingPhotoUrl })}>Iniciar Viaje</Button>
+                                                    <div className="space-y-4">
+                                                        <div className="relative rounded-xl overflow-hidden shadow-md">
+                                                            <img src={loadingPhotoUrl} className="w-full h-40 object-cover" alt="Carga" />
+                                                            <button onClick={() => setLoadingPhotoUrl('')} className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70"><X className="w-4 h-4" /></button>
+                                                        </div>
+                                                        <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-green-200" onClick={() => updateStatusMutation.mutate({ id: activeTrip.id, status: 'in_progress', photoUrl: loadingPhotoUrl })}>Iniciar Viaje</Button>
                                                     </div>
                                                 )}
                                             </div>
                                         )}
                                         {activeTrip.status === 'in_progress' && (
-                                            <div className="space-y-4 bg-white/10 p-4 rounded-lg">
-                                                <p className="text-sm font-bold">Prueba de Entrega</p>
+                                            <div className="space-y-4 p-5 bg-green-50/50 rounded-xl border border-green-100">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-sm font-bold text-green-900 uppercase tracking-tight">Prueba de Entrega</p>
+                                                    {uploadingPhoto.delivery && <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />}
+                                                </div>
                                                 {!deliveryPhotoUrl ? (
-                                                    <input type="file" onChange={async (e) => { const url = await uploadPhoto(e.target.files[0], 'delivery'); if (url) setDeliveryPhotoUrl(url); }} className="text-xs" />
+                                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-green-200 rounded-xl bg-white hover:bg-green-50 transition-colors cursor-pointer group">
+                                                        <Package className="w-8 h-8 text-green-300 group-hover:text-green-500 mb-2" />
+                                                        <span className="text-xs font-bold text-green-400 group-hover:text-green-600">Subir foto de entrega</span>
+                                                        <input type="file" onChange={async (e) => { const url = await uploadPhoto(e.target.files[0], 'delivery'); if (url) setDeliveryPhotoUrl(url); }} className="hidden" />
+                                                    </label>
                                                 ) : (
-                                                    <div className="space-y-3">
-                                                        <img src={deliveryPhotoUrl} className="h-24 rounded-lg" alt="Entrega" />
-                                                        <Button className="w-full bg-white text-primary hover:bg-white/90" onClick={() => { setTripToComplete(activeTrip.id); setConfirmModalOpen(true); }}>Confirmar Entrega</Button>
+                                                    <div className="space-y-4">
+                                                        <div className="relative rounded-xl overflow-hidden shadow-md">
+                                                            <img src={deliveryPhotoUrl} className="w-full h-40 object-cover" alt="Entrega" />
+                                                            <button onClick={() => setDeliveryPhotoUrl('')} className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70"><X className="w-4 h-4" /></button>
+                                                        </div>
+                                                        <Button className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20" onClick={() => { setTripToComplete(activeTrip.id); setConfirmModalOpen(true); }}>Confirmar Entrega</Button>
                                                     </div>
                                                 )}
                                             </div>
