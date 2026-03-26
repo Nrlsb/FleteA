@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, User, Truck, MapPin } from 'lucide-react';
 import { useState } from 'react';
+import logo from '../assets/logo.jpeg';
 
 const Layout = ({ children }) => {
     const { user, profile, logout } = useAuth();
@@ -20,7 +21,7 @@ const Layout = ({ children }) => {
                     <div className="flex justify-between h-16">
                         <div className="flex">
                             <Link to="/" className="flex-shrink-0 flex items-center">
-                                <img className="h-10 w-auto" src="/src/assets/logo.jpeg" alt="Fletea" />
+                                <img className="h-10 w-auto" src={logo} alt="Fletea" />
                                 <span className="ml-2 text-xl font-bold text-blue-900">Fletea</span>
                             </Link>
                         </div>

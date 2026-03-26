@@ -283,22 +283,34 @@ const UserDashboard = () => {
         <div className="relative min-h-[calc(100vh-100px)] pb-10">
             {/* Top Navigation Bar */}
             <div className="flex items-center gap-1 mb-8 bg-white p-1 rounded-2xl border shadow-sm w-fit mx-auto sm:mx-0">
-                <button onClick={() => setViewMode('home')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'home' || viewMode === 'requesting' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <Button
+                    variant={viewMode === 'home' || viewMode === 'requesting' ? 'default' : 'ghost'}
+                    onClick={() => setViewMode('home')}
+                    className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'home' || viewMode === 'requesting' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
                     <Home className="w-4 h-4" /> Inicio
-                </button>
-                <button onClick={() => setViewMode('history')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'history' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                </Button>
+                <Button
+                    variant={viewMode === 'history' ? 'default' : 'ghost'}
+                    onClick={() => setViewMode('history')}
+                    className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'history' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
                     <History className="w-4 h-4" /> Historial
-                </button>
-                <button onClick={() => setViewMode('analytics')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'analytics' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                </Button>
+                <Button
+                    variant={viewMode === 'analytics' ? 'default' : 'ghost'}
+                    onClick={() => setViewMode('analytics')}
+                    className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'analytics' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
                     <PieChart className="w-4 h-4" /> Estadísticas
-                </button>
+                </Button>
             </div>
 
             {viewMode === 'home' && (
                 <div className="space-y-6">
                     <div className="relative h-[60vh] w-full rounded-2xl overflow-hidden shadow-xl border border-gray-200">
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-11/12 max-w-md">
-                            <Button onClick={() => setViewMode('requesting')} className="w-full h-16 text-xl font-bold rounded-xl shadow-lg transform transition hover:scale-105 gap-2">
+                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-sm px-4">
+                            <Button onClick={() => setViewMode('requesting')} className="w-full h-14 text-lg font-bold rounded-2xl shadow-2xl transform transition active:scale-95 gap-3 bg-blue-600 hover:bg-blue-700 text-white border-2 border-white/20 backdrop-blur-sm">
                                 <Truck className="w-6 h-6" /> Pedir Flete Ahora
                             </Button>
                         </div>
@@ -449,8 +461,8 @@ const UserDashboard = () => {
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
                             <h3 className="font-semibold text-gray-800 flex items-center gap-2"><DollarSign className="w-4 h-4 text-primary" /> Servicios</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <ServiceCheckbox label="Ayuda Peón" price="2000" checked={selectedServices.includes('helper')} onChange={() => setType(p => p.includes('helper') ? p.filter(i => i !== 'helper') : [...p, 'helper'])} />
-                                <ServiceCheckbox label="Embalaje" price="1500" checked={selectedServices.includes('packing')} onChange={() => setType(p => p.includes('packing') ? p.filter(i => i !== 'packing') : [...p, 'packing'])} />
+                                <ServiceCheckbox label="Ayuda Peón" price="2000" checked={selectedServices.includes('helper')} onChange={() => setSelectedServices(p => p.includes('helper') ? p.filter(i => i !== 'helper') : [...p, 'helper'])} />
+                                <ServiceCheckbox label="Embalaje" price="1500" checked={selectedServices.includes('packing')} onChange={() => setSelectedServices(p => p.includes('packing') ? p.filter(i => i !== 'packing') : [...p, 'packing'])} />
                             </div>
                         </div>
                     </div>
