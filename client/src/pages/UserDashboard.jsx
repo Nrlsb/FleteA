@@ -159,9 +159,20 @@ const UserDashboard = () => {
     }, []);
 
     // Watch for completed trips to show rating modal
-    const prevTripsRef = useRef([]);
+    const prevTripsRef = useRef(null);
     useEffect(() => {
-        const newlyCompleted = myTrips.find(t => t.status === 'completed' && !prevTripsRef.current.find(oldT => oldT.id === t.id && oldT.status === 'completed'));
+        // Skip first load to avoid showing modal for old completed trips
+        if (prevTripsRef.current === null) {
+            prevTripsRef.current = myTrips;
+            return;
+        }
+
+        const newlyCompleted = myTrips.find(t =>
+            t.status === 'completed' &&
+            !t.client_rated &&
+            !prevTripsRef.current.find(oldT => oldT.id === t.id && oldT.status === 'completed')
+        );
+
         if (newlyCompleted) {
             setJustCompletedTrip(newlyCompleted);
             setRatingModalOpen(true);
