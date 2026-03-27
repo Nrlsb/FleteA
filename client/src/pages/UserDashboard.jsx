@@ -98,6 +98,7 @@ const UserDashboard = () => {
     const [chatModalOpen, setChatModalOpen] = useState(false);
     const [selectedDriverId, setSelectedDriverId] = useState(null);
     const [selectedTrip, setSelectedTrip] = useState(null);
+    const [activeRoutePoints, setActiveRoutePoints] = useState([]);
 
     const debouncedOrigin = useDebounce(origin, 300);
     const debouncedDestination = useDebounce(destination, 300);
@@ -214,6 +215,25 @@ const UserDashboard = () => {
         }
     }, [myTrips]);
 
+    useEffect(() => {
+        const active = myTrips.find(t => ['accepted', 'loading', 'in_progress'].includes(t.status));
+        if (!active || !active.origin_lat || !active.destination_lat) {
+            setActiveRoutePoints([]);
+            return;
+        }
+
+        const fetchRoute = async () => {
+            try {
+                const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${active.origin_lon},${active.origin_lat};${active.destination_lon},${active.destination_lat}?overview=full&geometries=geojson`);
+                const data = await r.json();
+                if (data.routes?.[0]) {
+                    setActiveRoutePoints(data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]));
+                }
+            } catch (_) { }
+        };
+        fetchRoute();
+    }, [myTrips.find(t => ['accepted', 'loading', 'in_progress'].includes(t.status))?.id]);
+
     useEffect(() => { fetchSuggestions(debouncedOrigin, 'origin'); }, [debouncedOrigin]);
     useEffect(() => { fetchSuggestions(debouncedDestination, 'destination'); }, [debouncedDestination]);
 
@@ -297,7 +317,10 @@ const UserDashboard = () => {
 
     const handleCreateTrip = () => {
         createTripMutation.mutate({
-            origin_address: origin, destination_address: destination, distance_km: parseFloat(distanceKm),
+            origin_address: origin, destination_address: destination,
+            origin_lat: originCoords.lat, origin_lon: originCoords.lon,
+            destination_lat: destinationCoords.lat, destination_lon: destinationCoords.lon,
+            distance_km: parseFloat(distanceKm),
             vehicle_type: vehicleType, price: calculatedPrice, category, photos: photoUrl ? [photoUrl] : [], services: selectedServices,
             driver_id: selectedManualDriver?.id
         });
@@ -380,17 +403,49 @@ const UserDashboard = () => {
                         if (!active) return null;
                         return (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden">
+                                <div className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden flex flex-col">
                                     <div className="flex items-center justify-between px-4 py-3 bg-blue-50">
                                         <h3 className="font-semibold text-blue-900">Seguimiento en vivo</h3>
                                         <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${STATUS_COLORS[active.status]}`}>{STATUS_LABELS[active.status]}</span>
                                     </div>
-                                    <div style={{ height: '320px' }}>
-                                        {active.driver_lat && (
-                                            <MapContainer center={[active.driver_lat, active.driver_lon]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                                <Marker position={[active.driver_lat, active.driver_lon]}><Popup>Tu chofer</Popup></Marker>
-                                            </MapContainer>
+                                    <div style={{ height: '320px' }} className="relative">
+                                        <MapContainer
+                                            center={active.driver_lat ? [active.driver_lat, active.driver_lon] : [active.origin_lat, active.origin_lon]}
+                                            zoom={13}
+                                            style={{ height: '100%', width: '100%' }}
+                                            zoomControl={false}
+                                        >
+                                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+                                            {/* Marcadores de origen y destino */}
+                                            {active.origin_lat && <Marker position={[active.origin_lat, active.origin_lon]}><Popup>Origen</Popup></Marker>}
+                                            {active.destination_lat && <Marker position={[active.destination_lat, active.destination_lon]}><Popup>Destino</Popup></Marker>}
+
+                                            {/* Ruta del viaje */}
+                                            {activeRoutePoints.length > 0 && <Polyline pathOptions={{ color: '#2563eb', weight: 4, dashArray: '10, 10' }} positions={activeRoutePoints} />}
+
+                                            {/* Ubicación del chofer */}
+                                            {active.driver_lat && (
+                                                <Marker position={[active.driver_lat, active.driver_lon]}>
+                                                    <Popup>Tu chofer está aquí</Popup>
+                                                </Marker>
+                                            )}
+
+                                            {/* Centrar el mapa automáticamente si cambia la ubicación */}
+                                            <MapUpdater coords={{
+                                                origin: { lat: active.driver_lat || active.origin_lat, lon: active.driver_lon || active.origin_lon },
+                                                destination: { lat: active.destination_lat, lon: active.destination_lon }
+                                            }} />
+                                        </MapContainer>
+
+                                        {!active.driver_lat && (
+                                            <div className="absolute inset-0 z-[1001] bg-white/40 backdrop-blur-[1px] flex items-center justify-center p-6 text-center">
+                                                <div className="bg-white/90 p-4 rounded-xl shadow-lg border border-blue-100 flex flex-col items-center gap-3">
+                                                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                                    <p className="text-sm font-bold text-gray-800">Conectando con el chofer...</p>
+                                                    <p className="text-[10px] text-gray-500">Muestra la ruta teórica mientras esperamos señal de GPS.</p>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>

@@ -26,7 +26,8 @@ export const calculatePrice = (req, res) => {
 
 export const createTrip = async (req, res) => {
     const {
-        origin_address, destination_address, distance_km, vehicle_type,
+        origin_address, destination_address, origin_lat, origin_lon,
+        destination_lat, destination_lon, distance_km, vehicle_type,
         price, category, photos, services, driver_id
     } = req.body;
 
@@ -38,6 +39,10 @@ export const createTrip = async (req, res) => {
             user_id: req.user.id,
             origin_address,
             destination_address,
+            origin_lat,
+            origin_lon,
+            destination_lat,
+            destination_lon,
             distance_km,
             price,
             status,

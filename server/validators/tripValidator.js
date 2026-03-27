@@ -9,6 +9,10 @@ export const calculatePriceSchema = z.object({
 export const createTripSchema = z.object({
     origin_address: z.string().min(5),
     destination_address: z.string().min(5),
+    origin_lat: z.number(),
+    origin_lon: z.number(),
+    destination_lat: z.number(),
+    destination_lon: z.number(),
     distance_km: z.number().positive(),
     vehicle_type: z.enum(['flete_chico', 'flete_mediano', 'mudancera']),
     price: z.number().positive(),
