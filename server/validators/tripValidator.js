@@ -15,6 +15,7 @@ export const createTripSchema = z.object({
     category: z.string(),
     photos: z.array(z.string()).optional(),
     services: z.array(z.string()).optional(),
+    driver_id: z.string().uuid().optional(),
 });
 
 export const updateStatusSchema = z.object({

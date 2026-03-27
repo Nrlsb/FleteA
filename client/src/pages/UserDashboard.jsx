@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Truck, DollarSign, Clock, Navigation, Package, Camera, ArrowRight, X, Pencil, History, PieChart, Home } from 'lucide-react';
+import { MapPin, Truck, DollarSign, Clock, Navigation, Package, Camera, ArrowRight, X, Pencil, History, PieChart, Home, Search, Star } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { apiGet, apiPost, apiDelete } from '../services/api';
 import RatingModal from '../components/RatingModal';
@@ -87,6 +87,12 @@ const UserDashboard = () => {
     const [justCompletedTrip, setJustCompletedTrip] = useState(null);
     const [pendingDriverProfiles, setPendingDriverProfiles] = useState({});
 
+    // --- Driver Selection State ---
+    const [selectedManualDriver, setSelectedManualDriver] = useState(null);
+    const [searchDriverQuery, setSearchDriverQuery] = useState('');
+    const [isSearchingDrivers, setIsSearchingDrivers] = useState(false);
+    const [driverSearchResults, setDriverSearchResults] = useState([]);
+
     // --- Modal States ---
     const [profileModalOpen, setProfileModalOpen] = useState(false);
     const [chatModalOpen, setChatModalOpen] = useState(false);
@@ -119,6 +125,12 @@ const UserDashboard = () => {
         refetchInterval: 30000,
     });
 
+    const { data: knownDrivers = [] } = useQuery({
+        queryKey: ['knownDrivers'],
+        queryFn: () => apiGet('/api/drivers/known').then(res => res.json()),
+        enabled: !!user,
+    });
+
     // --- Mutations ---
     const cancelTripMutation = useMutation({
         mutationFn: (id) => apiDelete(`/api/trips/${id}`),
@@ -145,6 +157,7 @@ const UserDashboard = () => {
                 setViewMode('home');
                 setOrigin(''); setDestination(''); setOriginCoords(null); setDestinationCoords(null);
                 setRoutePoints([]); setDistanceKm(''); setCalculatedPrice(null); setSelectedServices([]); setPhotoUrl('');
+                setSelectedManualDriver(null);
             }, 3000);
         },
         onError: () => setError('Error al crear el pedido. Intente nuevamente.'),
@@ -259,6 +272,19 @@ const UserDashboard = () => {
         } catch (_) { alert('Error al subir imagen'); } finally { setUploadingPhoto(false); }
     };
 
+    const handleSearchDrivers = async (query) => {
+        if (query.length < 3) {
+            setDriverSearchResults([]);
+            return;
+        }
+        setIsSearchingDrivers(true);
+        try {
+            const res = await apiGet(`/api/drivers/search?query=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            setDriverSearchResults(data);
+        } catch (_) { } finally { setIsSearchingDrivers(false); }
+    };
+
     const handleCalculatePrice = async () => {
         if (!distanceKm) return;
         setLoadingPrice(true);
@@ -272,7 +298,8 @@ const UserDashboard = () => {
     const handleCreateTrip = () => {
         createTripMutation.mutate({
             origin_address: origin, destination_address: destination, distance_km: parseFloat(distanceKm),
-            vehicle_type: vehicleType, price: calculatedPrice, category, photos: photoUrl ? [photoUrl] : [], services: selectedServices
+            vehicle_type: vehicleType, price: calculatedPrice, category, photos: photoUrl ? [photoUrl] : [], services: selectedServices,
+            driver_id: selectedManualDriver?.id
         });
     };
 
@@ -507,6 +534,90 @@ const UserDashboard = () => {
                                 <ServiceCheckbox label="Ayuda Peón" price="2000" checked={selectedServices.includes('helper')} onChange={() => setSelectedServices(p => p.includes('helper') ? p.filter(i => i !== 'helper') : [...p, 'helper'])} />
                                 <ServiceCheckbox label="Embalaje" price="1500" checked={selectedServices.includes('packing')} onChange={() => setSelectedServices(p => p.includes('packing') ? p.filter(i => i !== 'packing') : [...p, 'packing'])} />
                             </div>
+                        </div>
+
+                        {/* Selección de Fletero */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                                <Star className="w-4 h-4 text-yellow-500" /> Fletero Preferido (Opcional)
+                            </h3>
+
+                            {selectedManualDriver ? (
+                                <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center overflow-hidden">
+                                            {selectedManualDriver.photo_url ? (
+                                                <img src={selectedManualDriver.photo_url} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <UserIcon className="w-6 h-6 text-blue-600" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-blue-900">{selectedManualDriver.full_name}</p>
+                                            <p className="text-xs text-blue-700 capitalize">{selectedManualDriver.vehicle_type?.replace('_', ' ')}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedManualDriver(null)}
+                                        className="p-2 hover:bg-blue-100 rounded-full text-blue-600 transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar fletero por nombre..."
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border rounded-lg outline-none focus:ring-2 focus:ring-primary/20"
+                                            value={searchDriverQuery}
+                                            onChange={(e) => {
+                                                setSearchDriverQuery(e.target.value);
+                                                handleSearchDrivers(e.target.value);
+                                            }}
+                                        />
+                                        {isSearchingDrivers && <div className="absolute right-3 top-2.5 text-[10px] text-gray-400">Buscando...</div>}
+                                    </div>
+
+                                    {(driverSearchResults.length > 0 || knownDrivers.length > 0) && (
+                                        <div className="space-y-2">
+                                            <p className="text-xs font-bold text-gray-500 uppercase px-1">
+                                                {searchDriverQuery.length >= 3 ? 'Resultados de búsqueda' : 'Fleteros conocidos'}
+                                            </p>
+                                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                                                {(searchDriverQuery.length >= 3 ? driverSearchResults : knownDrivers).map(d => (
+                                                    <div
+                                                        key={d.id}
+                                                        onClick={() => {
+                                                            setSelectedManualDriver(d);
+                                                            setSearchDriverQuery('');
+                                                            setDriverSearchResults([]);
+                                                        }}
+                                                        className="flex-shrink-0 w-40 p-3 bg-gray-50 border border-gray-100 rounded-xl hover:border-primary/40 cursor-pointer transition-all active:scale-95"
+                                                    >
+                                                        <div className="w-10 h-10 rounded-full bg-gray-200 mb-2 flex items-center justify-center overflow-hidden mx-auto relative">
+                                                            {d.photo_url ? (
+                                                                <img src={d.photo_url} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <UserIcon className="w-5 h-5 text-gray-400" />
+                                                            )}
+                                                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${d.is_available ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                                        </div>
+                                                        <p className="text-xs font-bold text-gray-700 text-center truncate">{d.full_name}</p>
+                                                        <p className="text-[10px] text-gray-500 text-center capitalize">{d.vehicle_type?.replace('_', ' ')}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {searchDriverQuery.length < 3 && knownDrivers.length === 0 && (
+                                        <p className="text-xs text-gray-400 text-center py-2">No tienes fleteros conocidos guardados aún.</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 

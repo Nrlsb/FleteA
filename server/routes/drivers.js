@@ -17,5 +17,7 @@ const validate = (schema) => (req, res, next) => {
 router.post('/status', requireAuth, validate(updateDriverStatusSchema), driverController.updateStatus);
 router.put('/profile', requireAuth, validate(updateDriverProfileSchema), driverController.updateProfile);
 router.get('/available', driverController.getAvailableDrivers);
+router.get('/known', requireAuth, driverController.getKnownDrivers);
+router.get('/search', requireAuth, driverController.searchDrivers);
 
 export default router;

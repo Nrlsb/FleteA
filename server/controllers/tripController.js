@@ -27,8 +27,10 @@ export const calculatePrice = (req, res) => {
 export const createTrip = async (req, res) => {
     const {
         origin_address, destination_address, distance_km, vehicle_type,
-        price, category, photos, services
+        price, category, photos, services, driver_id
     } = req.body;
+
+    const status = driver_id ? 'driver_pending' : 'pending';
 
     const { data, error } = await supabase
         .from('trips')
@@ -38,9 +40,10 @@ export const createTrip = async (req, res) => {
             destination_address,
             distance_km,
             price,
-            status: 'pending',
+            status,
             vehicle_type,
             category,
+            driver_id: driver_id || null,
             photos: photos || [],
             services: services || []
         }])
@@ -61,6 +64,7 @@ export const getPendingTrips = async (req, res) => {
         .from('trips')
         .select('*, profiles!trips_user_id_fkey(full_name)')
         .eq('status', 'pending')
+        .or(`driver_id.is.null,driver_id.eq.${req.user.id}`)
         .order('created_at', { ascending: false });
 
     if (profile?.vehicle_type) {

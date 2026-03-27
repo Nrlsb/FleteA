@@ -45,3 +45,45 @@ export const getAvailableDrivers = async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 };
+
+export const getKnownDrivers = async (req, res) => {
+    // Buscar fleteros con los que el usuario ya haya tenido viajes
+    const { data, error } = await supabase
+        .from('trips')
+        .select(`
+            driver_id,
+            driver:profiles!trips_driver_id_fkey(id, full_name, vehicle_type, photo_url, is_available)
+        `)
+        .eq('user_id', req.user.id)
+        .not('driver_id', 'is', null)
+        .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Filtrar duplicados y nulls
+    const uniqueDrivers = [];
+    const seen = new Set();
+    data.forEach(t => {
+        if (t.driver && !seen.has(t.driver.id)) {
+            uniqueDrivers.push(t.driver);
+            seen.add(t.driver.id);
+        }
+    });
+
+    res.json(uniqueDrivers);
+};
+
+export const searchDrivers = async (req, res) => {
+    const { query } = req.query;
+    if (!query || query.length < 3) return res.json([]);
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, vehicle_type, photo_url')
+        .eq('role', 'driver')
+        .ilike('full_name', `%${query}%`)
+        .limit(10);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+};
