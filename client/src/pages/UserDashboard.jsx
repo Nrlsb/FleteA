@@ -546,11 +546,7 @@ const UserDashboard = () => {
                                 <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-xl">
                                     <div className="flex items-center gap-3">
                                         <div className="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center overflow-hidden">
-                                            {selectedManualDriver.photo_url ? (
-                                                <img src={selectedManualDriver.photo_url} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <UserIcon className="w-6 h-6 text-blue-600" />
-                                            )}
+                                            <UserIcon className="w-6 h-6 text-blue-600" />
                                         </div>
                                         <div>
                                             <p className="font-bold text-blue-900">{selectedManualDriver.full_name}</p>
@@ -598,11 +594,7 @@ const UserDashboard = () => {
                                                         className="flex-shrink-0 w-40 p-3 bg-gray-50 border border-gray-100 rounded-xl hover:border-primary/40 cursor-pointer transition-all active:scale-95"
                                                     >
                                                         <div className="w-10 h-10 rounded-full bg-gray-200 mb-2 flex items-center justify-center overflow-hidden mx-auto relative">
-                                                            {d.photo_url ? (
-                                                                <img src={d.photo_url} alt="" className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <UserIcon className="w-5 h-5 text-gray-400" />
-                                                            )}
+                                                            <UserIcon className="w-5 h-5 text-gray-400" />
                                                             <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${d.is_available ? 'bg-green-500' : 'bg-gray-400'}`} />
                                                         </div>
                                                         <p className="text-xs font-bold text-gray-700 text-center truncate">{d.full_name}</p>

@@ -52,7 +52,7 @@ export const getKnownDrivers = async (req, res) => {
         .from('trips')
         .select(`
             driver_id,
-            driver:profiles!trips_driver_id_fkey(id, full_name, vehicle_type, photo_url, is_available)
+            driver:profiles!trips_driver_id_fkey(id, full_name, vehicle_type, is_available)
         `)
         .eq('user_id', req.user.id)
         .not('driver_id', 'is', null)
@@ -79,7 +79,7 @@ export const searchDrivers = async (req, res) => {
 
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, vehicle_type, photo_url')
+        .select('id, full_name, vehicle_type')
         .eq('role', 'driver')
         .ilike('full_name', `%${query}%`)
         .limit(10);
