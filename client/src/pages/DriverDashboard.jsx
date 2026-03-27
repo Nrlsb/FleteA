@@ -299,7 +299,7 @@ const DriverDashboard = () => {
                                     </div>
                                 )}
                             </div>
-                            {activeTrip.status !== 'driver_pending' && (
+                            {activeTrip && (
                                 <Chat tripId={activeTrip.id} receiverName={activeTrip.profiles?.full_name || 'Cliente'} receiverRole="client" />
                             )}
                         </div>

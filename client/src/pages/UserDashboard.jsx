@@ -14,6 +14,8 @@ import { Button } from '../components/ui/button';
 import Chat from '../components/Chat';
 import HistoryTab from '../components/HistoryTab';
 import AnalyticsView from '../components/AnalyticsView';
+import DriverProfileModal from '../components/DriverProfileModal';
+import { MessageCircle, User as UserIcon } from 'lucide-react';
 
 // Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -84,6 +86,12 @@ const UserDashboard = () => {
     const [ratingModalOpen, setRatingModalOpen] = useState(false);
     const [justCompletedTrip, setJustCompletedTrip] = useState(null);
     const [pendingDriverProfiles, setPendingDriverProfiles] = useState({});
+
+    // --- Modal States ---
+    const [profileModalOpen, setProfileModalOpen] = useState(false);
+    const [chatModalOpen, setChatModalOpen] = useState(false);
+    const [selectedDriverId, setSelectedDriverId] = useState(null);
+    const [selectedTrip, setSelectedTrip] = useState(null);
 
     const debouncedOrigin = useDebounce(origin, 300);
     const debouncedDestination = useDebounce(destination, 300);
@@ -385,6 +393,30 @@ const UserDashboard = () => {
                                             <div className="mt-3 bg-yellow-50 p-3 rounded border border-yellow-200">
                                                 <p className="text-xs font-bold text-yellow-800 mb-2">¡Chofer Encontrado!</p>
                                                 {pendingDriverProfiles[trip.driver_id] && <p className="text-xs text-yellow-700 mb-3">Chofer: <span className="font-semibold">{pendingDriverProfiles[trip.driver_id].full_name}</span></p>}
+                                                <div className="flex gap-2 mb-3">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="flex-1 bg-white border-yellow-200 text-yellow-800 hover:bg-yellow-100 gap-1.5"
+                                                        onClick={() => {
+                                                            setSelectedDriverId(trip.driver_id);
+                                                            setProfileModalOpen(true);
+                                                        }}
+                                                    >
+                                                        <UserIcon className="w-3.5 h-3.5" /> Perfil
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="flex-1 bg-white border-yellow-200 text-yellow-800 hover:bg-yellow-100 gap-1.5"
+                                                        onClick={() => {
+                                                            setSelectedTrip(trip);
+                                                            setChatModalOpen(true);
+                                                        }}
+                                                    >
+                                                        <MessageCircle className="w-3.5 h-3.5" /> Mensaje
+                                                    </Button>
+                                                </div>
                                                 <div className="flex gap-2">
                                                     <Button size="sm" className="flex-1 bg-green-500 hover:bg-green-600" onClick={() => confirmDriverMutation.mutate(trip.id)}>Aceptar</Button>
                                                     <Button size="sm" variant="destructive" className="flex-1" onClick={() => rejectDriverMutation.mutate(trip.id)}>Rechazar</Button>
@@ -514,6 +546,34 @@ const UserDashboard = () => {
             {viewMode === 'analytics' && <AnalyticsView userId={user.id} role="user" />}
 
             <RatingModal isOpen={ratingModalOpen} onClose={() => setRatingModalOpen(false)} onSubmit={submitRating} title="Calificar Chofer" />
+
+            {/* Driver Profile Modal */}
+            <DriverProfileModal
+                isOpen={profileModalOpen}
+                onClose={() => setProfileModalOpen(false)}
+                driverId={selectedDriverId}
+            />
+
+            {/* Pre-acceptance Chat Modal */}
+            {chatModalOpen && selectedTrip && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <h3 className="font-bold text-gray-800">Chat con {pendingDriverProfiles[selectedTrip.driver_id]?.full_name || 'Chofer'}</h3>
+                            <button onClick={() => setChatModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            <Chat
+                                tripId={selectedTrip.id}
+                                receiverName={pendingDriverProfiles[selectedTrip.driver_id]?.full_name || 'Chofer'}
+                                receiverRole="driver"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
