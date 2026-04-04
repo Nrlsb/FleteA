@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { apiPost, apiPut } from '../services/api';
@@ -20,7 +21,16 @@ const DriverDashboard = () => {
     const queryClient = useQueryClient();
 
     // --- Local UI State ---
-    const [viewMode, setViewMode] = useState('home');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const viewMode = searchParams.get('view') || 'home';
+    const setViewMode = (mode) => {
+        if (mode === 'home') {
+            searchParams.delete('view');
+        } else {
+            searchParams.set('view', mode);
+        }
+        setSearchParams(searchParams);
+    };
     const [isAvailable, setIsAvailable] = useState(profile?.is_available || false);
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [tripToComplete, setTripToComplete] = useState(null);

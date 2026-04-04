@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Truck, DollarSign, Clock, Navigation, Package, Camera, ArrowRight, X, Pencil, History, PieChart, Home, Search, Star } from 'lucide-react';
 import { supabase } from '../services/supabase';
@@ -61,7 +62,16 @@ const UserDashboard = () => {
     const queryClient = useQueryClient();
 
     // --- State ---
-    const [viewMode, setViewMode] = useState('home');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const viewMode = searchParams.get('view') || 'home';
+    const setViewMode = (mode) => {
+        if (mode === 'home') {
+            searchParams.delete('view');
+        } else {
+            searchParams.set('view', mode);
+        }
+        setSearchParams(searchParams);
+    };
     const [origin, setOrigin] = useState('');
     const [destination, setDestination] = useState('');
     const [originCoords, setOriginCoords] = useState(null);
