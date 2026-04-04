@@ -2,8 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../services/supabase';
 import { Calendar, MapPin, DollarSign, ChevronRight, Package, Star } from 'lucide-react';
 import { Button } from './ui/button';
+import { useState } from 'react';
+import TripDetailModal from './TripDetailModal';
 
 const HistoryTab = ({ userId, role }) => {
+    const [selectedTripDetail, setSelectedTripDetail] = useState(null);
+
     const { data: trips = [], isLoading } = useQuery({
         queryKey: ['tripsHistory', userId],
         queryFn: async () => {
@@ -63,7 +67,12 @@ const HistoryTab = ({ userId, role }) => {
                                         <span className="capitalize">{trip.category}</span>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="sm" className="text-primary group-hover:translate-x-1 transition-transform">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-primary group-hover:translate-x-1 transition-transform"
+                                    onClick={() => setSelectedTripDetail(trip)}
+                                >
                                     Detalles <ChevronRight className="w-4 h-4 ml-1" />
                                 </Button>
                             </div>
@@ -71,6 +80,13 @@ const HistoryTab = ({ userId, role }) => {
                     ))}
                 </div>
             )}
+
+            <TripDetailModal
+                isOpen={!!selectedTripDetail}
+                onClose={() => setSelectedTripDetail(null)}
+                trip={selectedTripDetail}
+                role={role}
+            />
         </div>
     );
 };
