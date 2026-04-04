@@ -56,7 +56,7 @@ const userLocationIcon = new L.DivIcon({
 });
 
 const UserDashboard = () => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const queryClient = useQueryClient();
 
     // --- State ---
@@ -351,28 +351,34 @@ const UserDashboard = () => {
     return (
         <div className="relative min-h-[calc(100vh-100px)] pb-10">
             {/* Top Navigation Bar */}
-            <div className="flex items-center gap-1 mb-8 bg-white p-1 rounded-2xl border shadow-sm w-fit mx-auto sm:mx-0">
-                <Button
-                    variant={viewMode === 'home' || viewMode === 'requesting' ? 'default' : 'ghost'}
-                    onClick={() => setViewMode('home')}
-                    className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'home' || viewMode === 'requesting' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
-                >
-                    <Home className="w-4 h-4" /> Inicio
-                </Button>
-                <Button
-                    variant={viewMode === 'history' ? 'default' : 'ghost'}
-                    onClick={() => setViewMode('history')}
-                    className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'history' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
-                >
-                    <History className="w-4 h-4" /> Historial
-                </Button>
-                <Button
-                    variant={viewMode === 'analytics' ? 'default' : 'ghost'}
-                    onClick={() => setViewMode('analytics')}
-                    className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'analytics' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
-                >
-                    <PieChart className="w-4 h-4" /> Estadísticas
-                </Button>
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Hola, {profile?.full_name?.split(' ')[0] || 'Usuario'} 👋</h1>
+                    <p className="text-gray-500 text-sm">¿A dónde enviamos tu flete hoy?</p>
+                </div>
+                <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border shadow-sm w-fit">
+                    <Button
+                        variant={viewMode === 'home' || viewMode === 'requesting' ? 'default' : 'ghost'}
+                        onClick={() => setViewMode('home')}
+                        className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'home' || viewMode === 'requesting' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                        <Truck className="w-4 h-4" /> Pedir Flete
+                    </Button>
+                    <Button
+                        variant={viewMode === 'history' ? 'default' : 'ghost'}
+                        onClick={() => setViewMode('history')}
+                        className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'history' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                        <History className="w-4 h-4" /> Mis Pedidos
+                    </Button>
+                    <Button
+                        variant={viewMode === 'analytics' ? 'default' : 'ghost'}
+                        onClick={() => setViewMode('analytics')}
+                        className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'analytics' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                        <PieChart className="w-4 h-4" /> Mi Actividad
+                    </Button>
+                </div>
             </div>
 
             {viewMode === 'home' && (

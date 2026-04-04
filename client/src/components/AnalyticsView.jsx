@@ -39,7 +39,9 @@ const AnalyticsView = ({ userId, role }) => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900 px-2">Tu actividad</h2>
+            <h2 className="text-xl font-bold text-gray-900 px-2">
+                {role === 'driver' ? 'Resumen de Ganancias' : 'Resumen de Actividad'}
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card title="Viajes Totales" value={stats.totalTrips} icon={Clock} color="text-blue-600" />
                 <Card title="Completados" value={stats.completedTrips} icon={Award} color="text-green-600" />

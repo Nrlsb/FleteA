@@ -155,39 +155,48 @@ const DriverDashboard = () => {
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-10">
             {/* Top Navigation Bar */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border shadow-sm w-fit mx-auto sm:mx-0">
-                <button onClick={() => setViewMode('home')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'home' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
-                    <Home className="w-4 h-4" /> Inicio
-                </button>
-                <button onClick={() => setViewMode('history')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'history' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
-                    <History className="w-4 h-4" /> Historial
-                </button>
-                <button onClick={() => setViewMode('analytics')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'analytics' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
-                    <PieChart className="w-4 h-4" /> Estadísticas
-                </button>
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border shadow-sm w-fit">
+                    <button onClick={() => setViewMode('home')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'home' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                        <Home className="w-4 h-4" /> Panel de Trabajo
+                    </button>
+                    <button onClick={() => setViewMode('history')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'history' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                        <History className="w-4 h-4" /> Viajes Realizados
+                    </button>
+                    <button onClick={() => setViewMode('analytics')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'analytics' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                        <PieChart className="w-4 h-4" /> Mis Ganancias
+                    </button>
+                </div>
+                <div className="flex items-center gap-6 bg-white px-6 py-3 rounded-2xl border shadow-sm">
+                    <div className="text-right">
+                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Hoy</p>
+                        <p className="text-xl font-black text-green-600">${earnings.toFixed(0)}</p>
+                    </div>
+                    <div className="flex items-center gap-3 border-l pl-6">
+                        <span className={`text-xs font-black uppercase tracking-tight ${isAvailable ? 'text-green-600' : 'text-gray-400'}`}>{isAvailable ? 'En línea' : 'Fuera de servicio'}</span>
+                        <button onClick={() => toggleAvailabilityMutation.mutate(!isAvailable)} className={`relative h-6 w-11 rounded-full transition-all duration-300 ${isAvailable ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.4)]' : 'bg-gray-200'}`}>
+                            <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isAvailable ? 'translate-x-5' : ''}`} />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {viewMode === 'home' && (
                 <>
-                    <div className="bg-white p-6 rounded-xl shadow-md border flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center group hover:border-primary/20 transition-all">
                         <div>
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-2xl font-bold text-gray-900">Panel de Chofer</h1>
-                                <button onClick={openEditModal} className="p-1 text-gray-400 hover:text-primary"><Pencil className="w-4 h-4" /></button>
+                            <div className="flex items-center gap-2 mb-1">
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight">Hola, {profile?.full_name?.split(' ')[0] || 'Chofer'} 👋</h1>
+                                <button onClick={openEditModal} className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
                             </div>
-                            <p className="text-gray-500 text-sm">Vehículo: <span className="uppercase font-bold">{profile?.vehicle_type}</span></p>
+                            <p className="text-gray-500 text-sm font-medium flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                Vehículo: <span className="uppercase font-bold text-gray-700">{profile?.vehicle_type?.replace('_', ' ')}</span>
+                            </p>
                         </div>
-                        <div className="flex items-center gap-6">
-                            <div className="text-right">
-                                <p className="text-xs text-gray-500 uppercase">Hoy</p>
-                                <p className="text-xl font-bold text-green-600">${earnings.toFixed(0)}</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className={`text-sm font-medium ${isAvailable ? 'text-green-600' : 'text-gray-400'}`}>{isAvailable ? 'En línea' : 'Desconectado'}</span>
-                                <button onClick={() => toggleAvailabilityMutation.mutate(!isAvailable)} className={`relative h-6 w-11 rounded-full transition-colors ${isAvailable ? 'bg-green-500' : 'bg-gray-200'}`}>
-                                    <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform ${isAvailable ? 'translate-x-5' : ''}`} />
-                                </button>
-                            </div>
+                        <div className="hidden md:flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                            <div className={`w-3 h-3 rounded-full ${isAvailable ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
+                            <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">{isAvailable ? 'Recibiendo Pedidos' : 'Modo Descanso'}</span>
                         </div>
                     </div>
 

@@ -22,7 +22,9 @@ const HistoryTab = ({ userId, role }) => {
 
     return (
         <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 px-2">Historial de Viajes</h2>
+            <h2 className="text-xl font-bold text-gray-900 px-2">
+                {role === 'driver' ? 'Historial de Servicios' : 'Mis Pedidos Pasados'}
+            </h2>
             {trips.length === 0 ? (
                 <div className="py-20 text-center border-2 border-dashed rounded-xl text-gray-400">Aún no tienes viajes registrados.</div>
             ) : (
