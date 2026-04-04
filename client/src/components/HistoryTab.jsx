@@ -66,6 +66,15 @@ const HistoryTab = ({ userId, role }) => {
                                         <Package className="w-3.5 h-3.5" />
                                         <span className="capitalize">{trip.category}</span>
                                     </div>
+                                    {trip.status === 'completed' && (
+                                        <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-tight">
+                                            {((role === 'driver' && trip.driver_rated) || (role === 'user' && trip.client_rated)) ? (
+                                                <span className="flex items-center gap-1 text-yellow-600"><Star className="w-3 h-3 fill-yellow-500" /> Calificado</span>
+                                            ) : (
+                                                <span className="text-gray-400 flex items-center gap-1"><Star className="w-3 h-3" /> Sin Calificar</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <Button
                                     variant="ghost"

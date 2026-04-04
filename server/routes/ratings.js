@@ -15,5 +15,7 @@ const validate = (schema) => (req, res, next) => {
 };
 
 router.post('/', requireAuth, validate(createRatingSchema), ratingController.createRating);
+router.get('/:userId', requireAuth, ratingController.getUserRatings);
+router.get('/trip/:tripId', requireAuth, ratingController.getTripRatings);
 
 export default router;

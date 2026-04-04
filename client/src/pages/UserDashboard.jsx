@@ -15,7 +15,8 @@ import Chat from '../components/Chat';
 import HistoryTab from '../components/HistoryTab';
 import AnalyticsView from '../components/AnalyticsView';
 import DriverProfileModal from '../components/DriverProfileModal';
-import { MessageCircle, User as UserIcon } from 'lucide-react';
+import { MessageCircle, User as UserIcon, Star as StarOutline } from 'lucide-react';
+import UserProfileModal from '../components/UserProfileModal';
 
 // Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -99,6 +100,7 @@ const UserDashboard = () => {
     const [selectedDriverId, setSelectedDriverId] = useState(null);
     const [selectedTrip, setSelectedTrip] = useState(null);
     const [activeRoutePoints, setActiveRoutePoints] = useState([]);
+    const [userProfileOpen, setUserProfileOpen] = useState(false);
 
     const debouncedOrigin = useDebounce(origin, 300);
     const debouncedDestination = useDebounce(destination, 300);
@@ -352,9 +354,17 @@ const UserDashboard = () => {
         <div className="relative min-h-[calc(100vh-100px)] pb-10">
             {/* Top Navigation Bar */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Hola, {profile?.full_name?.split(' ')[0] || 'Usuario'} 👋</h1>
-                    <p className="text-gray-500 text-sm">¿A dónde enviamos tu flete hoy?</p>
+                <div className="flex items-center gap-4">
+                    <div
+                        onClick={() => setUserProfileOpen(true)}
+                        className="w-12 h-12 rounded-2xl bg-white border shadow-sm flex items-center justify-center cursor-pointer hover:border-primary/40 transition-all group shrink-0"
+                    >
+                        <UserIcon className="w-6 h-6 text-gray-400 group-hover:text-primary transition-colors" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">Hola, {profile?.full_name?.split(' ')[0] || 'Usuario'} 👋</h1>
+                        <p className="text-gray-500 text-sm">¿A dónde enviamos tu flete hoy?</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border shadow-sm w-fit">
                     <Button
@@ -738,6 +748,13 @@ const UserDashboard = () => {
                     </div>
                 </div>
             )}
+            {/* User Profile Modal */}
+            <UserProfileModal
+                isOpen={userProfileOpen}
+                onClose={() => setUserProfileOpen(false)}
+                userId={user.id}
+                profile={profile}
+            />
         </div>
     );
 };

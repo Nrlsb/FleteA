@@ -12,6 +12,8 @@ import { Button } from '../components/ui/button';
 import Chat from '../components/Chat';
 import HistoryTab from '../components/HistoryTab';
 import AnalyticsView from '../components/AnalyticsView';
+import UserProfileModal from '../components/UserProfileModal';
+import { User as UserIcon } from 'lucide-react';
 
 const DriverDashboard = () => {
     const { user, profile, updateProfileLocal } = useAuth();
@@ -31,6 +33,7 @@ const DriverDashboard = () => {
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({});
     const [editError, setEditError] = useState('');
+    const [userProfileOpen, setUserProfileOpen] = useState(false);
 
     // --- Data Queries ---
     const { data: pendingTrips = [] } = useQuery({
@@ -165,6 +168,9 @@ const DriverDashboard = () => {
                     </button>
                     <button onClick={() => setViewMode('analytics')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'analytics' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
                         <PieChart className="w-4 h-4" /> Mis Ganancias
+                    </button>
+                    <button onClick={() => setUserProfileOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all">
+                        <UserIcon className="w-4 h-4" /> Mi Perfil
                     </button>
                 </div>
                 <div className="flex items-center gap-6 bg-white px-6 py-3 rounded-2xl border shadow-sm">
@@ -396,6 +402,14 @@ const DriverDashboard = () => {
                     </div>
                 </div>
             )}
+
+            {/* User Profile Modal */}
+            <UserProfileModal
+                isOpen={userProfileOpen}
+                onClose={() => setUserProfileOpen(false)}
+                userId={user.id}
+                profile={profile}
+            />
         </div>
     );
 };

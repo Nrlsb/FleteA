@@ -1,4 +1,4 @@
-import { X, Star, Truck, Weight, Maximize } from 'lucide-react';
+import { X, Star, Truck, Weight, Maximize, Calendar, User as UserIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../services/supabase';
@@ -94,6 +94,35 @@ const DriverProfileModal = ({ isOpen, onClose, driverId, tripId }) => {
                                     `${profile.vehicle_dimensions.largo || '0'}m x ${profile.vehicle_dimensions.ancho || '0'}m x ${profile.vehicle_dimensions.alto || '0'}m`
                                     : '---'}
                             </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Reseñas Recientes</h3>
+                        <div className="space-y-4 max-h-60 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-100">
+                            {loadingReviews ? (
+                                <p className="text-center text-xs text-gray-400 py-4">Cargando reseñas...</p>
+                            ) : reviews.length === 0 ? (
+                                <p className="text-center text-xs text-gray-400 italic py-4">Sin reseñas aún.</p>
+                            ) : (
+                                reviews.map(r => (
+                                    <div key={r.id} className="bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <p className="text-xs font-bold text-gray-700">{r.profiles?.full_name || 'Usuario'}</p>
+                                            <div className="flex items-center gap-0.5">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star key={i} className={`w-2.5 h-2.5 ${i < r.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-200'}`} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-gray-600 italic">"{r.comment || 'Sin comentarios'}"</p>
+                                        <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1 uppercase font-bold tracking-tight">
+                                            <Calendar className="w-2.5 h-2.5" />
+                                            {new Date(r.created_at).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
 

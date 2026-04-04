@@ -30,3 +30,34 @@ export const createRating = async (req, res) => {
 
     res.json({ rating: data[0] });
 };
+
+export const getUserRatings = async (req, res) => {
+    const { userId } = req.params;
+
+    const { data, error } = await supabase
+        .from('ratings')
+        .select(`
+            *,
+            profiles:reviewer_id (full_name, avatar_url)
+        `)
+        .eq('reviewee_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+};
+
+export const getTripRatings = async (req, res) => {
+    const { tripId } = req.params;
+
+    const { data, error } = await supabase
+        .from('ratings')
+        .select(`
+            *,
+            profiles:reviewer_id (full_name, role)
+        `)
+        .eq('trip_id', tripId);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+};

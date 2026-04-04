@@ -1,6 +1,8 @@
 import React from 'react';
-import { X, MapPin, Calendar, DollarSign, Navigation, Package, Clock, ShieldCheck } from 'lucide-react';
+import { X, MapPin, Calendar, DollarSign, Navigation, Package, Clock, ShieldCheck, Star } from 'lucide-react';
 import { Button } from './ui/button';
+import { useQuery } from '@tanstack/react-query';
+import { apiGet } from '../services/api';
 
 const TripDetailModal = ({ isOpen, onClose, trip, role }) => {
     if (!isOpen || !trip) return null;
@@ -154,6 +156,11 @@ const TripDetailModal = ({ isOpen, onClose, trip, role }) => {
                             </div>
                         </div>
                     )}
+
+                    {/* Ratings Section */}
+                    {trip.status === 'completed' && (
+                        <TripRatings tripId={trip.id} role={role} />
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -162,6 +169,55 @@ const TripDetailModal = ({ isOpen, onClose, trip, role }) => {
                         Cerrar
                     </Button>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+const TripRatings = ({ tripId, role }) => {
+    const { data: ratings = [], isLoading } = useQuery({
+        queryKey: ['tripRatings', tripId],
+        queryFn: async () => {
+            const res = await apiGet(`/api/ratings/trip/${tripId}`);
+            if (!res.ok) throw new Error('Error al cargar calificaciones');
+            return res.json();
+        },
+        enabled: !!tripId,
+    });
+
+    if (isLoading) return <div className="py-4 text-center text-xs text-gray-400">Cargando calificaciones...</div>;
+    if (ratings.length === 0) return null;
+
+    // Separate ratings by who gave them
+    const myRating = ratings.find(r => (role === 'driver' && r.profiles?.role === 'driver') || (role === 'client' && r.profiles?.role === 'client'));
+    const receivedRating = ratings.find(r => (role === 'driver' && r.profiles?.role === 'client') || (role === 'client' && r.profiles?.role === 'driver'));
+
+    return (
+        <div className="space-y-4 pt-4 border-t border-gray-50">
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest text-center md:text-left">Calificaciones del Viaje</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {receivedRating && (
+                    <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 italic">
+                        <p className="text-[9px] text-blue-600 font-black uppercase tracking-widest mb-1">Calificación Recibida</p>
+                        <div className="flex items-center gap-1 mb-1">
+                            {[...Array(5)].map((_, i) => (
+                                <Star key={i} className={`w-3 h-3 ${i < receivedRating.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-200'}`} />
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-700">"{receivedRating.comment || 'Sin comentarios'}"</p>
+                    </div>
+                )}
+                {myRating && (
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 italic">
+                        <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-1">Tu Calificación</p>
+                        <div className="flex items-center gap-1 mb-1">
+                            {[...Array(5)].map((_, i) => (
+                                <Star key={i} className={`w-3 h-3 ${i < myRating.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-200'}`} />
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-500">"{myRating.comment || 'Sin comentarios'}"</p>
+                    </div>
+                )}
             </div>
         </div>
     );
