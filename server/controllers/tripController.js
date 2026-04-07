@@ -1,24 +1,55 @@
 import supabase from '../lib/supabase.js';
 
-export const calculatePrice = (req, res) => {
-    const { distance_km, vehicle_type, services = [] } = req.body;
+export const calculatePrice = async (req, res) => {
+    const { distance_km, vehicle_type, services = [], driver_id } = req.body;
 
-    const BASE_PRICE = 3000;
-    const PRICE_PER_KM = {
+    // Current global defaults
+    let basePrice = 3000;
+    let pricePerKm = {
         flete_chico: 900,
         flete_mediano: 1500,
         mudancera: 2500
     };
-    const SERVICE_PRICES = {
+    let servicePrices = {
         helper: 2000,
         packing: 1500
     };
 
-    const rate = PRICE_PER_KM[vehicle_type];
-    let price = BASE_PRICE + (distance_km * rate);
+    // If driver_id is provided, try to fetch their custom rates
+    if (driver_id) {
+        const { data: driverProfile } = await supabase
+            .from('profiles')
+            .select('base_price, price_per_km, helper_price, packing_price')
+            .eq('id', driver_id)
+            .maybeSingle();
+
+        if (driverProfile) {
+            if (driverProfile.base_price) basePrice = Number(driverProfile.base_price);
+            if (driverProfile.price_per_km) {
+                // If they set a generic price_per_km, use it for any vehicle type
+                // Or we could have per-vehicle prices, but for now let's use it as a multiplier or override
+                const customRate = Number(driverProfile.price_per_km);
+                pricePerKm = {
+                    flete_chico: customRate,
+                    flete_mediano: customRate * 1.5, // Maintain ratios if only one rate set? 
+                    mudancera: customRate * 2.5
+                };
+                // OR better: if they set price_per_km, it overrides the specific vehicle rate for THEIR vehicle
+                // But the user might be quote-ing for a different vehicle type.
+                // Let's assume price_per_km is their base rate and we scale it or they only set it for their vehicle.
+                // Simplified: use it as the rate for the requested vehicle_type if they set it.
+                pricePerKm[vehicle_type] = customRate;
+            }
+            if (driverProfile.helper_price) servicePrices.helper = Number(driverProfile.helper_price);
+            if (driverProfile.packing_price) servicePrices.packing = Number(driverProfile.packing_price);
+        }
+    }
+
+    const rate = pricePerKm[vehicle_type] || 1000;
+    let price = basePrice + (distance_km * rate);
 
     services.forEach(service => {
-        if (SERVICE_PRICES[service]) price += SERVICE_PRICES[service];
+        if (servicePrices[service]) price += servicePrices[service];
     });
 
     res.json({ price: Math.round(price) });

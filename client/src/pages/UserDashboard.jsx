@@ -321,7 +321,12 @@ const UserDashboard = () => {
         if (!distanceKm) return;
         setLoadingPrice(true);
         try {
-            const r = await apiPost('/api/trips/calculate-price', { distance_km: parseFloat(distanceKm), vehicle_type: vehicleType, services: selectedServices });
+            const r = await apiPost('/api/trips/calculate-price', {
+                distance_km: parseFloat(distanceKm),
+                vehicle_type: vehicleType,
+                services: selectedServices,
+                driver_id: selectedManualDriver?.id
+            });
             const data = await r.json();
             if (data.price) setCalculatedPrice(data.price);
         } catch (_) { } finally { setLoadingPrice(false); }

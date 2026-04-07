@@ -136,6 +136,10 @@ const DriverDashboard = () => {
             vehicle_type: profile?.vehicle_type || 'flete_chico',
             max_cargo_weight: profile?.max_cargo_weight || '',
             dim_length: dims.length || '', dim_width: dims.width || '', dim_height: dims.height || '',
+            base_price: profile?.base_price || '',
+            price_per_km: profile?.price_per_km || '',
+            helper_price: profile?.helper_price || '',
+            packing_price: profile?.packing_price || '',
         });
         setEditError(''); setEditModalOpen(true);
     };
@@ -402,6 +406,26 @@ const DriverDashboard = () => {
                                     <option value="flete_mediano">Flete Mediano</option>
                                     <option value="mudancera">Mudancera</option>
                                 </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tarifa Base ($)</label>
+                                    <input type="number" value={editForm.base_price} onChange={e => setEditForm(f => ({ ...f, base_price: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Ej: 3000" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio por KM ($)</label>
+                                    <input type="number" value={editForm.price_per_km} onChange={e => setEditForm(f => ({ ...f, price_per_km: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Ej: 900" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio Peón ($)</label>
+                                    <input type="number" value={editForm.helper_price} onChange={e => setEditForm(f => ({ ...f, helper_price: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Ej: 2000" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio Embalaje ($)</label>
+                                    <input type="number" value={editForm.packing_price} onChange={e => setEditForm(f => ({ ...f, packing_price: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Ej: 1500" />
+                                </div>
                             </div>
                             {editError && <p className="text-sm text-red-600">{editError}</p>}
                         </div>
