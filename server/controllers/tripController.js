@@ -85,7 +85,11 @@ export const createTrip = async (req, res) => {
         }])
         .select();
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+        console.error('Supabase error creating trip:', error);
+        return res.status(500).json({ error: error.message });
+    }
+
     res.json({ trip: data[0] });
 };
 
