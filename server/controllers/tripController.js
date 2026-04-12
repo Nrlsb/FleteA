@@ -125,9 +125,16 @@ export const acceptTrip = async (req, res) => {
         .eq('status', 'pending')
         .select();
 
-    if (error) return res.status(500).json({ error: error.message });
-    if (!data || data.length === 0) return res.status(400).json({ error: 'Trip not found or already accepted' });
+    if (error) {
+        console.error('Error in acceptTrip:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+    if (!data || data.length === 0) {
+        console.warn('acceptTrip: Trip not found or already accepted. ID:', id);
+        return res.status(400).json({ error: 'Trip not found or already accepted' });
+    }
 
+    console.log(`Trip ${id} successfully accepted by driver ${req.user.id}`);
     res.json({ trip: data[0] });
 };
 
