@@ -9,13 +9,13 @@ export const calculatePriceSchema = z.object({
 export const createTripSchema = z.object({
     origin_address: z.string().min(5),
     destination_address: z.string().min(5),
-    origin_lat: z.number(),
-    origin_lon: z.number(),
-    destination_lat: z.number(),
-    destination_lon: z.number(),
-    distance_km: z.number().positive(),
+    origin_lat: z.coerce.number(),
+    origin_lon: z.coerce.number(),
+    destination_lat: z.coerce.number(),
+    destination_lon: z.coerce.number(),
+    distance_km: z.coerce.number().positive(),
     vehicle_type: z.enum(['flete_chico', 'flete_mediano', 'mudancera']),
-    price: z.number().positive(),
+    price: z.coerce.number().positive(),
     category: z.string(),
     photos: z.array(z.string()).optional(),
     services: z.array(z.string()).optional(),
@@ -28,6 +28,6 @@ export const updateStatusSchema = z.object({
 });
 
 export const updateLocationSchema = z.object({
-    lat: z.number(),
-    lon: z.number(),
+    lat: z.coerce.number(),
+    lon: z.coerce.number(),
 });

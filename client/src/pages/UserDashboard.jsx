@@ -334,11 +334,18 @@ const UserDashboard = () => {
 
     const handleCreateTrip = () => {
         createTripMutation.mutate({
-            origin_address: origin, destination_address: destination,
-            origin_lat: originCoords.lat, origin_lon: originCoords.lon,
-            destination_lat: destinationCoords.lat, destination_lon: destinationCoords.lon,
+            origin_address: origin,
+            destination_address: destination,
+            origin_lat: Number(originCoords.lat),
+            origin_lon: Number(originCoords.lon),
+            destination_lat: Number(destinationCoords.lat),
+            destination_lon: Number(destinationCoords.lon),
             distance_km: parseFloat(distanceKm),
-            vehicle_type: vehicleType, price: calculatedPrice, category, photos: photoUrl ? [photoUrl] : [], services: selectedServices,
+            vehicle_type: vehicleType,
+            price: calculatedPrice,
+            category,
+            photos: photoUrl ? [photoUrl] : [],
+            services: selectedServices,
             driver_id: selectedManualDriver?.id
         });
     };
