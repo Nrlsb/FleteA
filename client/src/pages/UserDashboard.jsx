@@ -119,7 +119,11 @@ const UserDashboard = () => {
     const { data: myTrips = [] } = useQuery({
         queryKey: ['trips', user?.id],
         queryFn: async () => {
-            const { data, error } = await supabase.from('trips').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+            const { data, error } = await supabase
+                .from('trips')
+                .select('*, trip_offers(id, driver_id, status)')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
             if (error) throw error;
             return data;
         },
@@ -127,6 +131,7 @@ const UserDashboard = () => {
     });
 
     useRealtime('trips', `user_id=eq.${user?.id}`, ['trips', user?.id]);
+    useRealtime('trip_offers', null, ['trips', user?.id]); // Listen to all offer changes to trigger refetch
 
     const { data: availableDrivers = [] } = useQuery({
         queryKey: ['availableDrivers'],
@@ -151,12 +156,12 @@ const UserDashboard = () => {
     });
 
     const confirmDriverMutation = useMutation({
-        mutationFn: (id) => apiPost(`/api/trips/${id}/confirm_driver`, {}),
+        mutationFn: ({ id, driver_id }) => apiPost(`/api/trips/${id}/confirm_driver`, { driver_id }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trips'] }),
     });
 
     const rejectDriverMutation = useMutation({
-        mutationFn: (id) => apiPost(`/api/trips/${id}/reject_driver`, {}),
+        mutationFn: ({ id, driver_id }) => apiPost(`/api/trips/${id}/reject_driver`, { driver_id }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trips'] }),
     });
 
@@ -213,11 +218,13 @@ const UserDashboard = () => {
         }
         prevTripsRef.current = myTrips;
 
-        // Fetch driver profiles for pending approvals
-        const pendingTrips = myTrips.filter(t => t.status === 'driver_pending' && t.driver_id);
-        if (pendingTrips.length > 0) {
-            const driverIds = [...new Set(pendingTrips.map(t => t.driver_id))];
-            supabase.from('profiles').select('*').in('id', driverIds).then(({ data }) => {
+        // Fetch driver profiles for pending offers
+        const driversInOffers = myTrips.flatMap(t => t.trip_offers || []).map(o => o.driver_id);
+        const assignedDrivers = myTrips.filter(t => t.driver_id).map(t => t.driver_id);
+        const allRelevantDrivers = [...new Set([...driversInOffers, ...assignedDrivers])];
+
+        if (allRelevantDrivers.length > 0) {
+            supabase.from('profiles').select('*').in('id', allRelevantDrivers).then(({ data }) => {
                 if (data) {
                     const profMap = {};
                     data.forEach(d => profMap[d.id] = d);
@@ -507,40 +514,61 @@ const UserDashboard = () => {
                                             <div className="flex items-center gap-2 truncate"><div className="w-2 h-2 rounded-full bg-red-500 shrink-0" /><span className="truncate">{trip.destination_address}</span></div>
                                         </div>
                                         {trip.status === 'pending' && (
-                                            <Button variant="outline" size="sm" onClick={() => cancelTripMutation.mutate(trip.id)} className="w-full text-red-500 border-red-100 hover:bg-red-50">Cancelar pedido</Button>
-                                        )}
-                                        {trip.status === 'driver_pending' && (
-                                            <div className="mt-3 bg-yellow-50 p-3 rounded border border-yellow-200">
-                                                <p className="text-xs font-bold text-yellow-800 mb-2">¡Chofer Encontrado!</p>
-                                                {pendingDriverProfiles[trip.driver_id] && <p className="text-xs text-yellow-700 mb-3">Chofer: <span className="font-semibold">{pendingDriverProfiles[trip.driver_id].full_name}</span></p>}
-                                                <div className="flex gap-2 mb-3">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="flex-1 bg-white border-yellow-200 text-yellow-800 hover:bg-yellow-100 gap-1.5"
-                                                        onClick={() => {
-                                                            setSelectedDriverId(trip.driver_id);
-                                                            setProfileModalOpen(true);
-                                                        }}
-                                                    >
-                                                        <UserIcon className="w-3.5 h-3.5" /> Perfil
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="flex-1 bg-white border-yellow-200 text-yellow-800 hover:bg-yellow-100 gap-1.5"
-                                                        onClick={() => {
-                                                            setSelectedTrip(trip);
-                                                            setChatModalOpen(true);
-                                                        }}
-                                                    >
-                                                        <MessageCircle className="w-3.5 h-3.5" /> Mensaje
-                                                    </Button>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button size="sm" className="flex-1 bg-green-500 hover:bg-green-600" onClick={() => confirmDriverMutation.mutate(trip.id)}>Aceptar</Button>
-                                                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => rejectDriverMutation.mutate(trip.id)}>Rechazar</Button>
-                                                </div>
+                                            <div className="mt-3 space-y-3">
+                                                {trip.trip_offers?.filter(o => o.status === 'pending').length > 0 ? (
+                                                    <div>
+                                                        <p className="text-xs font-bold text-blue-800 mb-2">¡Fleteros interesados! ({trip.trip_offers.filter(o => o.status === 'pending').length})</p>
+                                                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                                                            {trip.trip_offers.filter(o => o.status === 'pending').map(offer => {
+                                                                const driver = pendingDriverProfiles[offer.driver_id];
+                                                                return (
+                                                                    <div key={offer.id} className="flex-shrink-0 w-64 bg-yellow-50 p-3 rounded-xl border border-yellow-200">
+                                                                        <div className="flex items-center gap-3 mb-2">
+                                                                            <div className="w-10 h-10 rounded-full bg-yellow-200 flex items-center justify-center overflow-hidden">
+                                                                                <UserIcon className="w-5 h-5 text-yellow-700" />
+                                                                            </div>
+                                                                            <div className="truncate">
+                                                                                <p className="text-xs font-bold text-yellow-900 truncate">{driver?.full_name || 'Cargando...'}</p>
+                                                                                <p className="text-[10px] text-yellow-700 capitalize">{driver?.vehicle_type?.replace('_', ' ')}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex gap-2 mb-2">
+                                                                            <Button
+                                                                                size="xs"
+                                                                                variant="outline"
+                                                                                className="flex-1 text-[10px] h-7 bg-white border-yellow-200 text-yellow-800 hover:bg-yellow-100 gap-1"
+                                                                                onClick={() => {
+                                                                                    setSelectedDriverId(offer.driver_id);
+                                                                                    setProfileModalOpen(true);
+                                                                                }}
+                                                                            >
+                                                                                <UserIcon className="w-3 h-3" /> Perfil
+                                                                            </Button>
+                                                                            <Button
+                                                                                size="xs"
+                                                                                variant="outline"
+                                                                                className="flex-1 text-[10px] h-7 bg-white border-yellow-200 text-yellow-800 hover:bg-yellow-100 gap-1"
+                                                                                onClick={() => {
+                                                                                    setSelectedTrip(trip);
+                                                                                    setSelectedDriverId(offer.driver_id); // Set active driver for chat
+                                                                                    setChatModalOpen(true);
+                                                                                }}
+                                                                            >
+                                                                                <MessageCircle className="w-3 h-3" /> Chat
+                                                                            </Button>
+                                                                        </div>
+                                                                        <div className="flex gap-2">
+                                                                            <Button size="xs" className="flex-1 h-7 bg-green-500 hover:bg-green-600 text-[10px]" onClick={() => confirmDriverMutation.mutate({ id: trip.id, driver_id: offer.driver_id })}>Aceptar</Button>
+                                                                            <Button size="xs" variant="destructive" className="flex-1 h-7 text-[10px]" onClick={() => rejectDriverMutation.mutate({ id: trip.id, driver_id: offer.driver_id })}>Rechazar</Button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <Button variant="outline" size="sm" onClick={() => cancelTripMutation.mutate(trip.id)} className="w-full text-red-500 border-red-100 hover:bg-red-50">Cancelar pedido</Button>
+                                                )}
                                             </div>
                                         )}
                                     </div>

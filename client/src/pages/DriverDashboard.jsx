@@ -61,13 +61,31 @@ const DriverDashboard = () => {
     const { data: activeTrip = null } = useQuery({
         queryKey: ['activeTrip', user?.id],
         queryFn: async () => {
-            const { data: trip, error } = await supabase.from('trips').select('*').eq('driver_id', user.id).in('status', ['driver_pending', 'accepted', 'loading', 'in_progress']).maybeSingle();
-            if (error) throw error;
-            if (trip?.user_id) {
-                const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', trip.user_id).maybeSingle();
-                return { ...trip, profiles: prof };
+            // First, find if there's a trip already assigned to this driver
+            const { data: assignedTrip, error: assignError } = await supabase
+                .from('trips')
+                .select('*, profiles!trips_user_id_fkey(full_name)')
+                .eq('driver_id', user.id)
+                .in('status', ['accepted', 'loading', 'in_progress'])
+                .maybeSingle();
+
+            if (assignError) throw assignError;
+            if (assignedTrip) return assignedTrip;
+
+            // If not, find if there's an offer that is 'pending' and the trip is still 'pending'
+            const { data: offer, error: offerError } = await supabase
+                .from('trip_offers')
+                .select('*, trips(*, profiles!trips_user_id_fkey(full_name))')
+                .eq('driver_id', user.id)
+                .eq('status', 'pending')
+                .maybeSingle();
+
+            if (offerError) throw offerError;
+            if (offer && offer.trips?.status === 'pending') {
+                return { ...offer.trips, status: 'driver_pending', profiles: offer.trips.profiles };
             }
-            return trip;
+
+            return null;
         },
         enabled: !!user,
     });
@@ -85,6 +103,7 @@ const DriverDashboard = () => {
     // Realtime Sync for ALL relevant trip changes
     useRealtime('trips', `status=eq.pending`, ['pendingTrips', profile?.vehicle_type]);
     useRealtime('trips', `driver_id=eq.${user?.id}`, ['activeTrip', user?.id]);
+    useRealtime('trip_offers', `driver_id=eq.${user?.id}`, ['activeTrip', user?.id]);
 
     // Track active trip location
     useDriverTracking(activeTrip);

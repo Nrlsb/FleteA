@@ -118,54 +118,84 @@ export const getPendingTrips = async (req, res) => {
 
 export const acceptTrip = async (req, res) => {
     const { id } = req.params;
-    const { data, error } = await supabase
+
+    // Check if trip is still pending
+    const { data: trip, error: tripError } = await supabase
         .from('trips')
-        .update({ driver_id: req.user.id, status: 'driver_pending' })
+        .select('status')
         .eq('id', id)
-        .eq('status', 'pending')
+        .single();
+
+    if (tripError || !trip) return res.status(404).json({ error: 'Trip not found' });
+    if (trip.status !== 'pending') return res.status(400).json({ error: 'Este viaje ya no está disponible' });
+
+    // Create an offer instead of updating the trip directly
+    const { data, error } = await supabase
+        .from('trip_offers')
+        .upsert([{
+            trip_id: id,
+            driver_id: req.user.id,
+            status: 'pending'
+        }])
         .select();
 
     if (error) {
-        console.error('Error in acceptTrip:', error.message);
+        console.error('Error in acceptTrip (offer):', error.message);
         return res.status(500).json({ error: error.message });
     }
-    if (!data || data.length === 0) {
-        console.warn('acceptTrip: Trip not found or already accepted. ID:', id);
-        return res.status(400).json({ error: 'Trip not found or already accepted' });
-    }
 
-    console.log(`Trip ${id} successfully accepted by driver ${req.user.id}`);
-    res.json({ trip: data[0] });
+    console.log(`Offer created for trip ${id} by driver ${req.user.id}`);
+    res.json({ offer: data[0] });
 };
 
 export const confirmDriver = async (req, res) => {
     const { id } = req.params;
+    const { driver_id } = req.body; // Client sends the ID of the chosen driver
+
+    if (!driver_id) return res.status(400).json({ error: 'Debe seleccionar un fletero' });
+
+    // 1. Update the trip
     const { data, error } = await supabase
         .from('trips')
-        .update({ status: 'accepted' })
+        .update({ status: 'accepted', driver_id })
         .eq('id', id)
         .eq('user_id', req.user.id)
-        .eq('status', 'driver_pending')
+        .eq('status', 'pending')
         .select();
 
     if (error) return res.status(500).json({ error: error.message });
-    if (!data || data.length === 0) return res.status(400).json({ error: 'Trip not found' });
+    if (!data || data.length === 0) return res.status(400).json({ error: 'Trip not found or already accepted' });
+
+    // 2. Update offers status
+    await supabase
+        .from('trip_offers')
+        .update({ status: 'accepted' })
+        .eq('trip_id', id)
+        .eq('driver_id', driver_id);
+
+    await supabase
+        .from('trip_offers')
+        .update({ status: 'rejected' })
+        .eq('trip_id', id)
+        .neq('driver_id', driver_id);
 
     res.json({ trip: data[0] });
 };
 
 export const rejectDriver = async (req, res) => {
-    const { id } = req.params;
-    const { data, error } = await supabase
-        .from('trips')
-        .update({ status: 'pending', driver_id: null })
-        .eq('id', id)
-        .eq('user_id', req.user.id)
-        .eq('status', 'driver_pending')
-        .select();
+    const { id } = req.params; // trip_id
+    const { driver_id } = req.body;
+
+    if (!driver_id) return res.status(400).json({ error: 'Driver required' });
+
+    const { error } = await supabase
+        .from('trip_offers')
+        .update({ status: 'rejected' })
+        .eq('trip_id', id)
+        .eq('driver_id', driver_id);
 
     if (error) return res.status(500).json({ error: error.message });
-    res.json({ trip: data[0] });
+    res.json({ ok: true });
 };
 
 export const updateTripStatus = async (req, res) => {
