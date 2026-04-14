@@ -1,0 +1,23 @@
+{
+  "appId": "com.fletea.app",
+  "appName": "Fletea",
+  "webDir": "dist",
+  "server": {
+    "url": "https://flete-a.vercel.app/",
+    "cleartext": false
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": null,
+      "keystorePassword": null,
+      "keystoreAlias": null,
+      "keystoreAliasPassword": null,
+      "releaseType": "APK"
+    }
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

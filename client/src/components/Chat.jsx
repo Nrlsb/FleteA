@@ -49,7 +49,7 @@ const Chat = ({ tripId, receiverName, receiverRole }) => {
     };
 
     return (
-        <div className="flex flex-col h-[400px] bg-white rounded-xl shadow-inner border overflow-hidden">
+        <div className="flex flex-col h-[50dvh] min-h-[250px] max-h-[400px] bg-white rounded-xl shadow-inner border overflow-hidden">
             <div className="p-3 bg-gray-50 border-b flex items-center gap-2">
                 <div className="p-1.5 bg-primary/10 rounded-full">
                     {receiverRole === 'driver' ? <Truck className="w-4 h-4 text-primary" /> : <User className="w-4 h-4 text-primary" />}

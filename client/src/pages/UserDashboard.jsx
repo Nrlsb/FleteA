@@ -380,52 +380,52 @@ const UserDashboard = () => {
     const STATUS_COLORS = { pending: 'bg-gray-100 text-gray-700', driver_pending: 'bg-yellow-200 text-yellow-800', accepted: 'bg-blue-100 text-blue-700', loading: 'bg-indigo-100 text-indigo-700', in_progress: 'bg-purple-100 text-purple-700', completed: 'bg-green-100 text-green-700', cancelled: 'bg-gray-100 text-gray-500' };
 
     return (
-        <div className="relative min-h-[calc(100vh-100px)] pb-10">
+        <div className="relative min-h-[calc(100vh-100px)] pb-10 px-3 sm:px-4 md:px-6">
             {/* Top Navigation Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div className="flex items-center gap-3">
                     <div
                         onClick={() => setUserProfileOpen(true)}
-                        className="w-12 h-12 rounded-2xl bg-white border shadow-sm flex items-center justify-center cursor-pointer hover:border-primary/40 transition-all group shrink-0"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white border shadow-sm flex items-center justify-center cursor-pointer hover:border-primary/40 transition-all group shrink-0"
                     >
-                        <UserIcon className="w-6 h-6 text-gray-400 group-hover:text-primary transition-colors" />
+                        <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 group-hover:text-primary transition-colors" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Hola, {profile?.full_name?.split(' ')[0] || 'Usuario'} 👋</h1>
-                        <p className="text-gray-500 text-sm">¿A dónde enviamos tu flete hoy?</p>
+                        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Hola, {profile?.full_name?.split(' ')[0] || 'Usuario'} 👋</h1>
+                        <p className="text-gray-500 text-xs sm:text-sm">¿A dónde enviamos tu flete hoy?</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border shadow-sm w-fit">
+                <div className="flex items-center flex-wrap gap-0.5 bg-white p-1 rounded-2xl border shadow-sm w-full">
                     <Button
                         variant={viewMode === 'home' || viewMode === 'requesting' ? 'default' : 'ghost'}
                         onClick={() => setViewMode('home')}
-                        className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'home' || viewMode === 'requesting' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                        className={`gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${viewMode === 'home' || viewMode === 'requesting' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
                     >
-                        <Truck className="w-4 h-4" /> Pedir Flete
+                        <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Pedir Flete</span><span className="sm:hidden">Flete</span>
                     </Button>
                     <Button
                         variant={viewMode === 'history' ? 'default' : 'ghost'}
                         onClick={() => setViewMode('history')}
-                        className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'history' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                        className={`gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${viewMode === 'history' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
                     >
-                        <History className="w-4 h-4" /> Mis Pedidos
+                        <History className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Mis Pedidos</span><span className="sm:hidden">Pedidos</span>
                     </Button>
                     <Button
                         variant={viewMode === 'analytics' ? 'default' : 'ghost'}
                         onClick={() => setViewMode('analytics')}
-                        className={`gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'analytics' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
+                        className={`gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${viewMode === 'analytics' ? '' : 'text-gray-500 hover:bg-gray-100'}`}
                     >
-                        <PieChart className="w-4 h-4" /> Mi Actividad
+                        <PieChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Mi Actividad</span><span className="sm:hidden">Actividad</span>
                     </Button>
                 </div>
             </div>
 
             {viewMode === 'home' && (
-                <div className="space-y-6">
-                    <div className="relative h-[60vh] w-full rounded-2xl overflow-hidden shadow-xl border border-gray-200">
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-sm px-4">
-                            <Button onClick={() => setViewMode('requesting')} className="w-full h-14 text-lg font-bold rounded-2xl shadow-2xl transform transition active:scale-95 gap-3 bg-blue-600 hover:bg-blue-700 text-white border-2 border-white/20 backdrop-blur-sm">
-                                <Truck className="w-6 h-6" /> Pedir Flete Ahora
+                <div className="space-y-4 sm:space-y-6">
+                    <div className="relative h-[55vh] sm:h-[60vh] w-full rounded-2xl overflow-hidden shadow-xl border border-gray-200 pb-4 sm:pb-0">
+                        <div className="absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xs sm:max-w-sm px-3 sm:px-4">
+                            <Button onClick={() => setViewMode('requesting')} className="w-full h-12 sm:h-14 text-base sm:text-lg font-bold rounded-2xl shadow-2xl transform transition active:scale-95 gap-2 sm:gap-3 bg-blue-600 hover:bg-blue-700 text-white border-2 border-white/20 backdrop-blur-sm">
+                                <Truck className="w-5 h-5 sm:w-6 sm:h-6" /> <span className="hidden sm:inline">Pedir Flete Ahora</span><span className="sm:hidden">Pedir Flete</span>
                             </Button>
                         </div>
                         <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false}>
@@ -447,7 +447,7 @@ const UserDashboard = () => {
                         const active = myTrips.find(t => ['accepted', 'loading', 'in_progress'].includes(t.status));
                         if (!active) return null;
                         return (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                                 <div className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden flex flex-col">
                                     <div className="flex items-center justify-between px-4 py-3 bg-blue-50">
                                         <h3 className="font-semibold text-blue-900">Seguimiento en vivo</h3>
@@ -500,16 +500,16 @@ const UserDashboard = () => {
                     })()}
 
                     {myTrips.length > 0 && (
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-800 mb-4 px-2">Mis Pedidos Recientes</h2>
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="mt-2">
+                            <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-5">Mis Pedidos Recientes</h2>
+                            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                 {myTrips.slice(0, 3).map(trip => (
-                                    <div key={trip.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${STATUS_COLORS[trip.status]}`}>{STATUS_LABELS[trip.status]}</span>
-                                            <span className="text-gray-500 font-bold">${trip.price}</span>
+                                    <div key={trip.id} className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100">
+                                        <div className="flex justify-between items-start mb-2 gap-2">
+                                            <span className={`px-2 py-1 rounded-full text-[9px] sm:text-[10px] font-bold uppercase whitespace-nowrap ${STATUS_COLORS[trip.status]}`}>{STATUS_LABELS[trip.status]}</span>
+                                            <span className="text-gray-500 font-bold text-sm sm:text-base">${trip.price}</span>
                                         </div>
-                                        <div className="space-y-2 text-sm text-gray-600 mb-3">
+                                        <div className="space-y-2 text-xs sm:text-sm text-gray-600 mb-3">
                                             <div className="flex items-center gap-2 truncate"><div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" /><span className="truncate">{trip.origin_address}</span></div>
                                             <div className="flex items-center gap-2 truncate"><div className="w-2 h-2 rounded-full bg-red-500 shrink-0" /><span className="truncate">{trip.destination_address}</span></div>
                                         </div>
@@ -518,11 +518,11 @@ const UserDashboard = () => {
                                                 {trip.trip_offers?.filter(o => o.status === 'pending').length > 0 ? (
                                                     <div>
                                                         <p className="text-xs font-bold text-blue-800 mb-2">¡Fleteros interesados! ({trip.trip_offers.filter(o => o.status === 'pending').length})</p>
-                                                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                                                        <div className="grid grid-cols-1 gap-3">
                                                             {trip.trip_offers.filter(o => o.status === 'pending').map(offer => {
                                                                 const driver = pendingDriverProfiles[offer.driver_id];
                                                                 return (
-                                                                    <div key={offer.id} className="flex-shrink-0 w-64 bg-yellow-50 p-3 rounded-xl border border-yellow-200">
+                                                                    <div key={offer.id} className="w-full bg-yellow-50 p-3 rounded-xl border border-yellow-200">
                                                                         <div className="flex items-center gap-3 mb-2">
                                                                             <div className="w-10 h-10 rounded-full bg-yellow-200 flex items-center justify-center overflow-hidden">
                                                                                 <UserIcon className="w-5 h-5 text-yellow-700" />
@@ -580,15 +580,15 @@ const UserDashboard = () => {
             )}
 
             {viewMode === 'requesting' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-7 space-y-6">
-                        <div className="flex items-center gap-2 mb-4">
-                            <button onClick={() => setViewMode('home')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowRight className="w-6 h-6 rotate-180 text-gray-600" /></button>
-                            <h1 className="text-2xl font-bold text-gray-900">Configura tu Flete</h1>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8">
+                    <div className="lg:col-span-7 space-y-4 sm:space-y-6">
+                        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                            <button onClick={() => setViewMode('home')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 rotate-180 text-gray-600" /></button>
+                            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Configura tu Flete</h1>
                         </div>
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Navigation className="w-4 h-4 text-primary" /> Ruta</h3>
+                        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                                <h3 className="font-semibold text-sm sm:text-base text-gray-800 flex items-center gap-2"><Navigation className="w-4 h-4 text-primary" /> Ruta</h3>
                                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
                                     <MapPin className="w-3 h-3" /> <span>Ciudad:</span>
                                     {editingCity ? (
@@ -625,23 +625,23 @@ const UserDashboard = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                            <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> Carga</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-4 py-2 border rounded-lg outline-none">
+                        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-sm sm:text-base text-gray-800 flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> Carga</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 sm:px-4 py-2 text-sm border rounded-lg outline-none">
                                     <option value="general">Cargas Generales</option><option value="furniture">Muebles</option><option value="small_move">Mudanza Pequeña</option>
                                 </select>
                                 <div className="relative flex items-center border rounded-lg px-3 py-2">
-                                    <Camera className="w-5 h-5 text-gray-400 mr-2" />
+                                    <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2" />
                                     <input type="file" onChange={handlePhotoUpload} className="text-xs file:hidden w-full cursor-pointer" />
-                                    {uploadingPhoto && <span className="text-[10px] text-primary">Subiendo...</span>}
-                                    {photoUrl && <span className="text-[10px] text-green-600">¡OK!</span>}
+                                    {uploadingPhoto && <span className="text-[9px] sm:text-[10px] text-primary">Subiendo...</span>}
+                                    {photoUrl && <span className="text-[9px] sm:text-[10px] text-green-600">¡OK!</span>}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                            <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Truck className="w-4 h-4 text-primary" /> Vehículo</h3>
+                        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-sm sm:text-base text-gray-800 flex items-center gap-2"><Truck className="w-4 h-4 text-primary" /> Vehículo</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 {renderVehicleOption('flete_chico', 'Utilitario', 'Kangoo / Partner')}
                                 {renderVehicleOption('flete_mediano', 'Camioneta', 'Hilux / S10')}
@@ -649,8 +649,8 @@ const UserDashboard = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                            <h3 className="font-semibold text-gray-800 flex items-center gap-2"><DollarSign className="w-4 h-4 text-primary" /> Servicios</h3>
+                        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-sm sm:text-base text-gray-800 flex items-center gap-2"><DollarSign className="w-4 h-4 text-primary" /> Servicios</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <ServiceCheckbox label="Ayuda Peón" price="2000" checked={selectedServices.includes('helper')} onChange={() => setSelectedServices(p => p.includes('helper') ? p.filter(i => i !== 'helper') : [...p, 'helper'])} />
                                 <ServiceCheckbox label="Embalaje" price="1500" checked={selectedServices.includes('packing')} onChange={() => setSelectedServices(p => p.includes('packing') ? p.filter(i => i !== 'packing') : [...p, 'packing'])} />
@@ -658,9 +658,9 @@ const UserDashboard = () => {
                         </div>
 
                         {/* Selección de Fletero */}
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                                <Star className="w-4 h-4 text-yellow-500" /> Fletero Preferido (Opcional)
+                        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="font-semibold text-sm sm:text-base text-gray-800 flex items-center gap-2">
+                                <Star className="w-4 h-4 text-yellow-500" /> <span className="hidden sm:inline">Fletero Preferido (Opcional)</span><span className="sm:hidden">Fletero (Opcional)</span>
                             </h3>
 
                             {selectedManualDriver ? (
@@ -703,7 +703,7 @@ const UserDashboard = () => {
                                             <p className="text-xs font-bold text-gray-500 uppercase px-1">
                                                 {searchDriverQuery.length >= 3 ? 'Resultados de búsqueda' : 'Fleteros conocidos'}
                                             </p>
-                                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                                 {(searchDriverQuery.length >= 3 ? driverSearchResults : knownDrivers).map(d => (
                                                     <div
                                                         key={d.id}
@@ -712,7 +712,7 @@ const UserDashboard = () => {
                                                             setSearchDriverQuery('');
                                                             setDriverSearchResults([]);
                                                         }}
-                                                        className="flex-shrink-0 w-40 p-3 bg-gray-50 border border-gray-100 rounded-xl hover:border-primary/40 cursor-pointer transition-all active:scale-95"
+                                                        className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl hover:border-primary/40 cursor-pointer transition-all active:scale-95"
                                                     >
                                                         <div className="w-10 h-10 rounded-full bg-gray-200 mb-2 flex items-center justify-center overflow-hidden mx-auto relative">
                                                             <UserIcon className="w-5 h-5 text-gray-400" />
@@ -744,23 +744,23 @@ const UserDashboard = () => {
                                 <MapUpdater coords={{ origin: originCoords, destination: destinationCoords }} />
                             </MapContainer>
                         </div>
-                        <div className="bg-blue-900 p-6 rounded-2xl shadow-xl space-y-6">
-                            <h2 className="text-xl font-bold">Resumen</h2>
-                            <div className="bg-white/10 p-4 rounded-xl">
+                        <div className="bg-blue-900 p-4 sm:p-6 rounded-2xl shadow-xl space-y-4 sm:space-y-6">
+                            <h2 className="text-lg sm:text-xl font-bold">Resumen</h2>
+                            <div className="bg-white/10 p-3 sm:p-4 rounded-xl">
                                 <p className="text-xs text-blue-200 mb-1">TOTAL ESTIMADO</p>
-                                <span className="text-3xl font-bold">{calculatedPrice ? `$${calculatedPrice}` : '---'}</span>
+                                <span className="text-2xl sm:text-3xl font-bold">{calculatedPrice ? `$${calculatedPrice}` : '---'}</span>
                             </div>
                             {!calculatedPrice ? (
-                                <Button className="w-full h-14 bg-white text-blue-900 hover:bg-blue-50 font-bold" onClick={handleCalculatePrice} disabled={!distanceKm || loadingPrice}>
+                                <Button className="w-full h-12 sm:h-14 bg-white text-blue-900 hover:bg-blue-50 font-bold text-sm sm:text-base" onClick={handleCalculatePrice} disabled={!distanceKm || loadingPrice}>
                                     {loadingPrice ? 'Calculando...' : 'Cotizar Precio'}
                                 </Button>
                             ) : (
-                                <Button className="w-full h-14 bg-green-500 hover:bg-green-600 font-bold" onClick={handleCreateTrip} disabled={createTripMutation.isLoading}>
+                                <Button className="w-full h-12 sm:h-14 bg-green-500 hover:bg-green-600 font-bold text-sm sm:text-base" onClick={handleCreateTrip} disabled={createTripMutation.isLoading}>
                                     {createTripMutation.isLoading ? 'Enviando...' : 'Confirmar Pedido'}
                                 </Button>
                             )}
-                            {error && <p className="text-red-300 text-sm text-center">{error}</p>}
-                            {success && <p className="text-green-300 text-sm text-center">{success}</p>}
+                            {error && <p className="text-red-300 text-xs sm:text-sm text-center">{error}</p>}
+                            {success && <p className="text-green-300 text-xs sm:text-sm text-center">{success}</p>}
                         </div>
                     </div>
                 </div>

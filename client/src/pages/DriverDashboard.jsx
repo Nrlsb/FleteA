@@ -192,7 +192,7 @@ const DriverDashboard = () => {
         <div className="max-w-4xl mx-auto space-y-8 pb-10">
             {/* Top Navigation Bar */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border shadow-sm w-fit">
+                <div className="flex items-center flex-wrap gap-1 bg-white p-1 rounded-2xl border shadow-sm w-full">
                     <button onClick={() => setViewMode('home')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === 'home' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
                         <Home className="w-4 h-4" /> Panel de Trabajo
                     </button>

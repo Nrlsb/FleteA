@@ -147,7 +147,7 @@ const Register = () => {
                     )}
 
                     {role === 'driver' && (
-                        <div className="grid grid-cols-3 gap-2 animate-fade-in">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 animate-fade-in">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Largo (m)</label>
                                 <input

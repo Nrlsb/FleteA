@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Fletea</string>
+    <string name="title_activity_main">Fletea</string>
+    <string name="package_name">com.fletea.app</string>
+    <string name="custom_url_scheme">com.fletea.app</string>
+</resources>
